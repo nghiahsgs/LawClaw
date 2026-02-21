@@ -1,0 +1,228 @@
+"""Telegram bot integration for LawClaw."""
+
+from __future__ import annotations
+
+import asyncio
+import sqlite3
+
+from loguru import logger
+from telegram import BotCommand, Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+from lawclaw.config import Config
+from lawclaw.core.agent import Agent
+from lawclaw.core.judicial import JudicialBranch
+from lawclaw.core.legislative import LegislativeBranch
+from lawclaw.db import clear_session
+
+
+class TelegramBot:
+    """Telegram bot that wraps the LawClaw agent."""
+
+    def __init__(
+        self,
+        config: Config,
+        agent: Agent,
+        conn: sqlite3.Connection,
+        legislative: LegislativeBranch,
+        judicial: JudicialBranch,
+    ) -> None:
+        self._config = config
+        self._agent = agent
+        self._conn = conn
+        self._legislative = legislative
+        self._judicial = judicial
+        self._app: Application | None = None
+
+    def _session_key(self, chat_id: int) -> str:
+        return f"telegram:{chat_id}"
+
+    def _is_allowed(self, user_id: int) -> bool:
+        if not self._config.telegram_allow_from:
+            return True  # Empty list = allow all
+        return str(user_id) in self._config.telegram_allow_from
+
+    async def start(self) -> None:
+        """Start the Telegram bot with long polling."""
+        if not self._config.telegram_token:
+            logger.error("Telegram token not configured")
+            return
+
+        self._app = Application.builder().token(self._config.telegram_token).build()
+
+        # Register commands
+        self._app.add_handler(CommandHandler("start", self._on_start))
+        self._app.add_handler(CommandHandler("new", self._on_new))
+        self._app.add_handler(CommandHandler("audit", self._on_audit))
+        self._app.add_handler(CommandHandler("skills", self._on_skills))
+        self._app.add_handler(CommandHandler("approve", self._on_approve))
+        self._app.add_handler(CommandHandler("ban", self._on_ban))
+        self._app.add_handler(CommandHandler("jobs", self._on_jobs))
+        self._app.add_handler(CommandHandler("help", self._on_help))
+
+        # Message handler
+        self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_message))
+
+        # Set bot commands menu
+        await self._app.bot.set_my_commands([
+            BotCommand("new", "Start new session"),
+            BotCommand("audit", "View recent audit log"),
+            BotCommand("skills", "List skill statuses"),
+            BotCommand("approve", "Approve a pending skill"),
+            BotCommand("ban", "Ban a skill"),
+            BotCommand("jobs", "List cron jobs"),
+            BotCommand("help", "Show commands"),
+        ])
+
+        logger.info("Telegram bot starting...")
+        await self._app.initialize()
+        await self._app.start()
+        await self._app.updater.start_polling(drop_pending_updates=True)
+
+        # Keep running
+        while True:
+            await asyncio.sleep(1)
+
+    async def stop(self) -> None:
+        if self._app:
+            await self._app.updater.stop()
+            await self._app.stop()
+            await self._app.shutdown()
+
+    # -- Command handlers --
+
+    async def _on_start(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        await update.message.reply_text(
+            "🏛️ *LawClaw* — The Governed AI Agent\n\n"
+            "I operate under a constitution with separation of powers.\n"
+            "Every action is audited. Type /help for commands.",
+            parse_mode="Markdown",
+        )
+
+    async def _on_new(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        key = self._session_key(update.effective_chat.id)
+        clear_session(self._conn, key)
+        await update.message.reply_text("🔄 New session started.")
+
+    async def _on_audit(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        key = self._session_key(update.effective_chat.id)
+        entries = self._judicial.get_audit_log(key, limit=10)
+        if not entries:
+            await update.message.reply_text("No audit entries yet.")
+            return
+        lines = ["📋 *Recent Audit Log:*\n"]
+        for e in entries:
+            icon = "✅" if e["verdict"] == "allowed" else "⛔"
+            lines.append(f"{icon} `{e['tool_name']}` — {e['verdict']}")
+            if e.get("reason"):
+                lines.append(f"   ↳ {e['reason']}")
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+    async def _on_skills(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        rows = self._conn.execute(
+            "SELECT name, status FROM skills ORDER BY status, name"
+        ).fetchall()
+        if not rows:
+            await update.message.reply_text("No skills registered.")
+            return
+        icons = {"approved": "✅", "pending": "⏳", "banned": "🚫"}
+        lines = ["📜 *Skill Registry:*\n"]
+        for r in rows:
+            lines.append(f"{icons.get(r['status'], '❓')} `{r['name']}` — {r['status']}")
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+    async def _on_approve(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        args = update.message.text.split(maxsplit=1)
+        if len(args) < 2:
+            await update.message.reply_text("Usage: /approve skill_name")
+            return
+        skill_name = args[1].strip()
+        self._legislative.approve_skill(skill_name)
+        await update.message.reply_text(f"✅ Skill `{skill_name}` approved.", parse_mode="Markdown")
+
+    async def _on_ban(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        args = update.message.text.split(maxsplit=1)
+        if len(args) < 2:
+            await update.message.reply_text("Usage: /ban skill_name")
+            return
+        skill_name = args[1].strip()
+        self._legislative.ban_skill(skill_name)
+        await update.message.reply_text(f"🚫 Skill `{skill_name}` banned.", parse_mode="Markdown")
+
+    async def _on_jobs(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        # Inline import to avoid circular
+        from lawclaw.core.cron import CronService
+        rows = self._conn.execute(
+            "SELECT id, name, schedule_type, schedule_value, enabled, last_status FROM cron_jobs"
+        ).fetchall()
+        if not rows:
+            await update.message.reply_text("No cron jobs.")
+            return
+        lines = ["⏰ *Cron Jobs:*\n"]
+        for r in rows:
+            status = "🟢" if r["enabled"] else "⚪"
+            lines.append(f"{status} `{r['name']}` ({r['schedule_type']}: {r['schedule_value']})")
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+    async def _on_help(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        await update.message.reply_text(
+            "🏛️ *LawClaw Commands:*\n\n"
+            "/new — Start new session\n"
+            "/audit — View recent audit log\n"
+            "/skills — List skill statuses\n"
+            "/approve name — Approve a skill\n"
+            "/ban name — Ban a skill\n"
+            "/jobs — List cron jobs\n"
+            "/help — Show this message",
+            parse_mode="Markdown",
+        )
+
+    # -- Message handler --
+
+    async def _on_message(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+
+        text = update.message.text or ""
+        if not text.strip():
+            return
+
+        chat_id = update.effective_chat.id
+        key = self._session_key(chat_id)
+
+        # Show typing indicator
+        await update.effective_chat.send_action("typing")
+
+        try:
+            response = await self._agent.process(message=text, session_key=key)
+            if response:
+                # Telegram has 4096 char limit — split if needed
+                for i in range(0, len(response), 4000):
+                    chunk = response[i:i + 4000]
+                    await update.message.reply_text(chunk)
+        except Exception as e:
+            logger.error("Error processing message: {}", e)
+            await update.message.reply_text(f"⚠️ Error: {str(e)[:200]}")
+
+    def _check_access(self, update: Update) -> bool:
+        user_id = update.effective_user.id if update.effective_user else None
+        if user_id and not self._is_allowed(user_id):
+            logger.warning("Access denied for user {}", user_id)
+            return False
+        return True
