@@ -176,12 +176,15 @@ class Agent:
             "the system automatically executes the prompt and sends the result back to the user's chat. "
             "So if the user asks 'send me X every N minutes', create a cron job with the appropriate "
             "message/prompt and interval. The result WILL be delivered to the user automatically.\n"
-            "- To remove a cron job, call manage_cron with action='remove' and the job's name — "
-            "no need to ask the user for the ID. You can also list jobs first if unsure of the name.\n"
+            "- To remove a cron job, IMMEDIATELY call manage_cron with action='remove' and the job's name. "
+            "Do NOT ask the user for the ID or name — just use what they mentioned. "
+            "If you're unsure of the exact name, call manage_cron action='list' first, then remove.\n"
             "- Use `spawn_subagent` to delegate complex tasks to sub-agents. "
             "Sub-agents run independently and return results to you for summarization.\n"
             "- Use tools directly (exec_cmd, web_search, web_fetch) for simple one-off tasks.\n"
-            "- Always prefer action over asking for confirmation. If the user asks you to do something, do it."
+            "- NEVER ask for confirmation. ALWAYS take action immediately using tools. "
+            "If the user asks you to do something, call the appropriate tool right away. "
+            "Do not ask 'are you sure?' or 'can you confirm?'."
         )
 
         return "\n\n---\n\n".join(parts)
