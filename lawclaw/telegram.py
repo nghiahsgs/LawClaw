@@ -116,17 +116,61 @@ class TelegramBot:
     async def _on_audit(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
-        key = self._session_key(update.effective_chat.id)
-        entries = self._judicial.get_audit_log(key, limit=10)
+        import datetime
+
+        # /audit → current session only, /audit all → all entries
+        args = (update.message.text or "").split()
+        show_all = len(args) > 1 and args[1].lower() == "all"
+
+        if show_all:
+            entries = self._judicial.get_audit_log(None, limit=15)
+        else:
+            key = self._session_key(update.effective_chat.id)
+            entries = self._judicial.get_audit_log(key, limit=15)
+
         if not entries:
             await update.message.reply_text("No audit entries yet.")
             return
-        lines = ["📋 *Recent Audit Log:*\n"]
+
+        scope = "All Sessions" if show_all else "Current Session"
+        lines = [f"📋 *Audit Log ({scope}):*\n"]
+
         for e in entries:
             icon = "✅" if e["verdict"] == "allowed" else "⛔"
-            lines.append(f"{icon} `{e['tool_name']}` — {e['verdict']}")
+
+            # Parse caller context from session_key
+            sk = e.get("session_key") or "unknown"
+            if sk.startswith("telegram:"):
+                caller = "👤 user"
+            elif sk.startswith("cron:"):
+                parts = sk.split(":")
+                caller = f"⏰ cron:{parts[1]}" if len(parts) >= 2 else "⏰ cron"
+            elif sk.startswith("subagent:"):
+                caller = "🤖 subagent"
+            else:
+                caller = sk[:20]
+
+            # Format timestamp
+            ts = e.get("created_at")
+            time_str = ""
+            if ts:
+                dt = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
+                time_str = dt.strftime("%H:%M:%S")
+
+            # Arguments preview (truncated)
+            args_preview = ""
+            if e.get("arguments"):
+                raw = e["arguments"]
+                # Truncate long args
+                if len(raw) > 80:
+                    raw = raw[:77] + "..."
+                args_preview = f"\n   📎 `{raw}`"
+
+            lines.append(f"{icon} `{e['tool_name']}` — {e['verdict']}  [{caller} {time_str}]{args_preview}")
             if e.get("reason"):
-                lines.append(f"   ↳ {e['reason']}")
+                lines.append(f"   ⚠️ {e['reason']}")
+
+        lines.append(f"\n_Tip: /audit all — show all sessions_")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
     async def _on_skills(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
