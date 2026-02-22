@@ -186,6 +186,9 @@ class JudicialBranch:
                 if isinstance(value, str) and ("/" in value or "\\" in value):
                     if value.startswith(("http://", "https://", "ftp://")):
                         continue
+                    # Skip strings that contain URLs (e.g. curl commands)
+                    if "http://" in value or "https://" in value:
+                        continue
                     if len(value) > 500:
                         continue
                     try:
