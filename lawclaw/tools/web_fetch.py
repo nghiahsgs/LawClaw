@@ -44,13 +44,30 @@ def _extract_text(html: str, url: str) -> str:
 
 class WebFetchTool(Tool):
     name = "web_fetch"
-    description = "Fetch the content of a URL and return readable text. Strips HTML tags."
+    description = (
+        "Fetch a URL (GET) or send data to an API (POST/PUT/PATCH/DELETE). "
+        "For HTML pages, strips tags and returns readable text. "
+        "For API calls, set method + body (JSON string) + headers."
+    )
     parameters: dict[str, Any] = {
         "type": "object",
         "properties": {
             "url": {
                 "type": "string",
-                "description": "The URL to fetch.",
+                "description": "The URL to fetch or call.",
+            },
+            "method": {
+                "type": "string",
+                "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+                "description": "HTTP method (default GET).",
+            },
+            "body": {
+                "type": "string",
+                "description": "Request body as JSON string (for POST/PUT/PATCH).",
+            },
+            "headers": {
+                "type": "object",
+                "description": "Extra HTTP headers (e.g. {\"Authorization\": \"Bearer ...\"}).",
             },
             "max_chars": {
                 "type": "integer",
@@ -61,22 +78,38 @@ class WebFetchTool(Tool):
         "required": ["url"],
     }
 
-    async def execute(self, url: str, max_chars: int = 50000) -> str:  # type: ignore[override]
-        logger.debug("web_fetch: url={} max_chars={}", url, max_chars)
+    async def execute(  # type: ignore[override]
+        self,
+        url: str,
+        method: str = "GET",
+        body: str = "",
+        headers: dict[str, str] | None = None,
+        max_chars: int = 50000,
+    ) -> str:
+        logger.debug("web_fetch: {} {} body={}", method, url, len(body))
         max_chars = max(100, min(max_chars, 200_000))
 
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; LawClaw/0.1; +https://github.com/lawclaw)"
-            )
+        req_headers: dict[str, str] = {
+            "User-Agent": "Mozilla/5.0 (compatible; LawClaw/0.1; +https://github.com/lawclaw)",
         }
+        if headers:
+            req_headers.update(headers)
+
+        # Auto-set Content-Type for JSON body
+        if body and "content-type" not in {k.lower() for k in req_headers}:
+            req_headers["Content-Type"] = "application/json"
 
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             try:
-                resp = await client.get(url, headers=headers)
+                resp = await client.request(
+                    method=method.upper(),
+                    url=url,
+                    headers=req_headers,
+                    content=body.encode() if body else None,
+                )
                 resp.raise_for_status()
             except httpx.HTTPStatusError as exc:
-                return f"HTTP error {exc.response.status_code} fetching {url}"
+                return f"HTTP error {exc.response.status_code} fetching {url}: {exc.response.text[:500]}"
             except httpx.RequestError as exc:
                 return f"Request failed: {exc}"
 
