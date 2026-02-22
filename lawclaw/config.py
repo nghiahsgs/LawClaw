@@ -14,14 +14,13 @@ from loguru import logger
 
 CONFIG_DIR = Path.home() / ".lawclaw"
 CONFIG_PATH = CONFIG_DIR / "config.json"
-ENV_PATH = CONFIG_DIR / ".env"
 
 
-def _load_dotenv() -> None:
-    """Load ~/.lawclaw/.env into os.environ (no external deps)."""
-    if not ENV_PATH.exists():
+def _parse_env_file(path: Path) -> None:
+    """Parse a .env file into os.environ (no external deps)."""
+    if not path.exists():
         return
-    for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -31,7 +30,13 @@ def _load_dotenv() -> None:
         key = key.strip()
         value = value.strip().strip("'\"")  # strip quotes
         os.environ.setdefault(key, value)  # don't override existing env
-    logger.debug("Loaded .env from {}", ENV_PATH)
+    logger.debug("Loaded .env from {}", path)
+
+
+def _load_dotenv() -> None:
+    """Load .env files. Priority: CWD/.env > ~/.lawclaw/.env."""
+    _parse_env_file(Path.cwd() / ".env")       # repo-local .env first
+    _parse_env_file(CONFIG_DIR / ".env")        # fallback to home dir
 
 
 @dataclass
