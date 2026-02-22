@@ -58,10 +58,6 @@ class Config:
     max_iterations: int = 15
     memory_window: int = 40
 
-    # Governance
-    constitution_path: str = "constitution.md"
-    auto_approve_builtin_skills: bool = True
-
     # Paths
     workspace: str = str(CONFIG_DIR / "workspace")
     db_path: str = str(CONFIG_DIR / "lawclaw.db")
@@ -93,8 +89,6 @@ def load_config() -> Config:
         telegram_allow_from=data.get("telegram_allow_from", []),
         max_iterations=data.get("max_iterations", 15),
         memory_window=data.get("memory_window", 40),
-        constitution_path=data.get("constitution_path", "constitution.md"),
-        auto_approve_builtin_skills=data.get("auto_approve_builtin_skills", True),
         workspace=data.get("workspace", str(CONFIG_DIR / "workspace")),
         db_path=data.get("db_path", str(CONFIG_DIR / "lawclaw.db")),
     )
@@ -118,8 +112,6 @@ def _to_dict(cfg: Config) -> dict:
         "telegram_allow_from": cfg.telegram_allow_from,
         "max_iterations": cfg.max_iterations,
         "memory_window": cfg.memory_window,
-        "constitution_path": cfg.constitution_path,
-        "auto_approve_builtin_skills": cfg.auto_approve_builtin_skills,
         "workspace": cfg.workspace,
         "db_path": cfg.db_path,
     }

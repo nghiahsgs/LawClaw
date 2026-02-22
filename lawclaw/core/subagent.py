@@ -72,7 +72,7 @@ class _SubagentAgent(Agent):
                 messages.append(assistant_msg)
 
                 for tc in response.tool_calls:
-                    verdict = self._judicial.pre_check(tc.name, tc.arguments, self._legislative)
+                    verdict = self._judicial.pre_check(tc.name, tc.arguments)
                     if not verdict.allowed:
                         result_str = f"[BLOCKED] {verdict.reason}"
                     else:
@@ -116,12 +116,12 @@ class SubagentManager:
         # Use a limited config for subagents
         sub_config = Config(
             openrouter_api_key=self._config.openrouter_api_key,
+            zai_api_key=self._config.zai_api_key,
             model=self._config.model,
             temperature=self._config.temperature,
             max_tokens=self._config.max_tokens,
             max_iterations=5,
             memory_window=0,
-            constitution_path=self._config.constitution_path,
             workspace=self._config.workspace,
         )
 

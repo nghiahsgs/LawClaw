@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
 import sqlite3
 import sys
 from pathlib import Path
@@ -27,19 +26,14 @@ from lawclaw.tools.spawn_subagent import SpawnSubagentTool
 from lawclaw.tools.web_fetch import WebFetchTool
 from lawclaw.tools.web_search import WebSearchTool
 
-BUNDLED_CONSTITUTION = Path(__file__).parent.parent / "constitution.md"
+# Repo root: where governance markdown files live
+REPO_ROOT = Path(__file__).parent.parent
 
 
 def _setup_workspace() -> None:
-    """Create default directories and copy constitution if needed."""
+    """Create runtime directories."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    (CONFIG_DIR / "laws").mkdir(exist_ok=True)
     (CONFIG_DIR / "workspace").mkdir(exist_ok=True)
-
-    target = CONFIG_DIR / "constitution.md"
-    if not target.exists() and BUNDLED_CONSTITUTION.exists():
-        shutil.copy2(BUNDLED_CONSTITUTION, target)
-        logger.info("Constitution copied to {}", target)
 
 
 def _make_base_tools(workspace: str) -> ToolRegistry:
@@ -51,6 +45,20 @@ def _make_base_tools(workspace: str) -> ToolRegistry:
     return tools
 
 
+def _build_branches(conn: sqlite3.Connection, workspace: str) -> tuple[LegislativeBranch, JudicialBranch]:
+    """Build both governance branches from repo markdown files."""
+    legislative = LegislativeBranch(
+        constitution_path=REPO_ROOT / "constitution.md",
+        laws_dir=REPO_ROOT / "laws",
+    )
+    judicial = JudicialBranch(
+        conn=conn,
+        judicial_path=REPO_ROOT / "judicial.md",
+        workspace=Path(workspace),
+    )
+    return legislative, judicial
+
+
 def _build_agent(
     config: Config,
     conn: sqlite3.Connection,
@@ -59,7 +67,7 @@ def _build_agent(
     llm: LLMClient,
     cron: CronService | None = None,
 ) -> tuple[Agent, ManageCronTool | None]:
-    """Build agent with base tools + spawn + cron management."""
+    """Build agent with all tools."""
     base_tools = _make_base_tools(config.workspace)
 
     subagent_mgr = SubagentManager(
@@ -73,19 +81,14 @@ def _build_agent(
     spawn_tool.set_manager(subagent_mgr)
     main_tools.register(spawn_tool)
 
-    # Memory tool (persistent key-value store)
     memory_tool = ManageMemoryTool(conn)
     main_tools.register(memory_tool)
 
-    # Cron management tool (gateway mode only)
     cron_tool = None
     if cron:
         cron_tool = ManageCronTool()
         cron_tool.set_cron(cron)
         main_tools.register(cron_tool)
-
-    if config.auto_approve_builtin_skills:
-        legislative.register_builtin(main_tools.list_names())
 
     agent = Agent(
         config=config, conn=conn,
@@ -98,21 +101,14 @@ def _build_agent(
 async def run_gateway() -> None:
     """Run the full LawClaw gateway (Telegram + Cron)."""
     config = load_config()
-
-    if not config.openrouter_api_key:
-        logger.error("OpenRouter API key not configured. Edit ~/.lawclaw/config.json")
-        sys.exit(1)
-
     _setup_workspace()
 
     conn = get_connection(Path(config.db_path))
     init_db(conn)
 
-    legislative = LegislativeBranch(conn)
-    judicial = JudicialBranch(conn, workspace=Path(config.workspace))
+    legislative, judicial = _build_branches(conn, config.workspace)
     llm = LLMClient(config)
 
-    # Cron + Agent (cron created first so agent gets the tool)
     cron = CronService(conn=conn)
     agent, cron_tool = _build_agent(config, conn, legislative, judicial, llm, cron=cron)
 
@@ -124,15 +120,12 @@ async def run_gateway() -> None:
     # Cron callback: run agent + send result to Telegram
     async def on_cron_job(job_id: str, message: str, chat_id: str) -> str | None:
         import time
-        # Each cron run gets a unique session so history doesn't accumulate
         run_key = f"cron:{job_id}:{int(time.time())}"
 
-        # Set memory namespace to this job so manage_memory is scoped
         mem_tool = agent._tools.get("manage_memory")
         if mem_tool:
             mem_tool.set_namespace(f"job:{job_id}")
 
-        # Auto-inject job's persisted memory into prompt
         job_memory = load_memory_for_namespace(conn, f"job:{job_id}")
         memory_section = ""
         if job_memory:
@@ -178,8 +171,7 @@ async def run_cli(message: str) -> None:
     conn = get_connection(Path(config.db_path))
     init_db(conn)
 
-    legislative = LegislativeBranch(conn)
-    judicial = JudicialBranch(conn, workspace=Path(config.workspace))
+    legislative, judicial = _build_branches(conn, config.workspace)
     llm = LLMClient(config)
 
     agent, _ = _build_agent(config, conn, legislative, judicial, llm)
@@ -204,8 +196,7 @@ def cli() -> None:
         _setup_workspace()
         load_config()
         print(f"LawClaw initialized at {CONFIG_DIR}")
-        print(f"   Edit config: {CONFIG_DIR / 'config.json'}")
-        print(f"   Constitution: {CONFIG_DIR / 'constitution.md'}")
+        print(f"   Governance: {REPO_ROOT} (constitution.md, judicial.md, skills.md, laws/)")
 
     elif cmd == "gateway":
         asyncio.run(run_gateway())

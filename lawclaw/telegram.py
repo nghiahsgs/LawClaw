@@ -176,16 +176,17 @@ class TelegramBot:
     async def _on_skills(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
-        rows = self._conn.execute(
-            "SELECT name, status FROM skills ORDER BY status, name"
-        ).fetchall()
-        if not rows:
-            await update.message.reply_text("No skills registered.")
+        tool_names = self._agent._tools.list_names()
+        blocked = self._judicial.get_blocked_tools()
+        if not tool_names:
+            await update.message.reply_text("No skills available.")
             return
-        icons = {"approved": "✅", "pending": "⏳", "banned": "🚫"}
-        lines = ["📜 *Skill Registry:*\n"]
-        for r in rows:
-            lines.append(f"{icons.get(r['status'], '❓')} `{r['name']}` — {r['status']}")
+        lines = ["🧠 *AI Skills:*\n"]
+        for name in sorted(tool_names):
+            if name in blocked:
+                lines.append(f"🚫 `{name}` — blocked by Judicial")
+            else:
+                lines.append(f"✅ `{name}`")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
     async def _on_approve(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -193,22 +194,22 @@ class TelegramBot:
             return
         args = update.message.text.split(maxsplit=1)
         if len(args) < 2:
-            await update.message.reply_text("Usage: /approve skill_name")
+            await update.message.reply_text("Usage: /approve tool\_name")
             return
-        skill_name = args[1].strip()
-        self._legislative.approve_skill(skill_name)
-        await update.message.reply_text(f"✅ Skill `{skill_name}` approved.", parse_mode="Markdown")
+        tool_name = args[1].strip()
+        self._judicial.approve_tool(tool_name)
+        await update.message.reply_text(f"✅ `{tool_name}` unblocked by Judicial.", parse_mode="Markdown")
 
     async def _on_ban(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
         args = update.message.text.split(maxsplit=1)
         if len(args) < 2:
-            await update.message.reply_text("Usage: /ban skill_name")
+            await update.message.reply_text("Usage: /ban tool\_name")
             return
-        skill_name = args[1].strip()
-        self._legislative.ban_skill(skill_name)
-        await update.message.reply_text(f"🚫 Skill `{skill_name}` banned.", parse_mode="Markdown")
+        tool_name = args[1].strip()
+        self._judicial.ban_tool(tool_name)
+        await update.message.reply_text(f"🚫 `{tool_name}` blocked by Judicial.", parse_mode="Markdown")
 
     async def _on_jobs(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):

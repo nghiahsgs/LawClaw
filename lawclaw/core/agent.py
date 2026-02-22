@@ -1,4 +1,4 @@
-"""Executive branch — core agent loop with governance integration."""
+"""Agent loop — core LLM loop with governance integration."""
 
 from __future__ import annotations
 
@@ -34,15 +34,9 @@ class Agent:
         self._tools = tools
         self._llm = llm
 
-        # Pre-load constitution and laws once
-        constitution_path = Path(config.constitution_path)
-        if not constitution_path.is_absolute():
-            # Resolve relative to config dir
-            constitution_path = Path.home() / ".lawclaw" / config.constitution_path
-        self._constitution = legislative.load_constitution(constitution_path)
-
-        laws_dir = Path.home() / ".lawclaw" / "laws"
-        self._laws = legislative.load_laws(laws_dir)
+        # Pre-load constitution and laws once (from repo files via legislative)
+        self._constitution = legislative.load_constitution()
+        self._laws = legislative.load_laws()
 
     async def process(
         self,
@@ -92,7 +86,7 @@ class Agent:
 
                 # Execute each tool call
                 for tc in response.tool_calls:
-                    verdict = self._judicial.pre_check(tc.name, tc.arguments, self._legislative)
+                    verdict = self._judicial.pre_check(tc.name, tc.arguments)
 
                     if not verdict.allowed:
                         result_str = f"[BLOCKED] {verdict.reason}"
@@ -181,8 +175,13 @@ class Agent:
 
         parts.append(
             "# Personality\n\n"
-            "You are LawClaw, a governed AI agent. You operate within the boundaries "
-            "defined by the constitution and laws above. You are helpful, precise, and transparent. "
+            "You are LawClaw, a governed AI agent operating under 'Song Quyền Phân Lập' "
+            "(two-branch separation of powers):\n"
+            "- **Legislative**: Constitution + Laws define what you should and should not do. "
+            "You must follow them like a law-abiding citizen.\n"
+            "- **Judicial**: Automated enforcement that blocks dangerous tool calls. "
+            "If you violate rules, the Judicial branch vetoes execution.\n\n"
+            "You are helpful, precise, and transparent. "
             "You always disclose when a tool call was blocked and explain why.\n\n"
             "# Capabilities\n\n"
             "- Use `manage_cron` to create recurring scheduled tasks. When a cron job runs, "

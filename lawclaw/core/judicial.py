@@ -1,4 +1,12 @@
-"""Judicial branch — pre-check engine and audit logger."""
+"""Judicial branch — pre-check engine and audit logger.
+
+Reads enforcement rules from judicial.md:
+  - Blocked tools (via /ban, /approve)
+  - Dangerous regex patterns
+  - Workspace sandbox (exec_cmd only)
+
+Acts as automated enforcement ("camera phạt nguội") — no police needed.
+"""
 
 from __future__ import annotations
 
@@ -7,40 +15,36 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from loguru import logger
 
 from lawclaw.db import log_audit
 
-if TYPE_CHECKING:
-    from lawclaw.core.legislative import LegislativeBranch
-
-DANGEROUS_PATTERNS: list[str] = [
-    r"rm\s+-[rf]+\s+/",          # rm -rf /
-    r"rm\s+-[rf]+\s+~",          # rm -rf ~
+# Fallback patterns if judicial.md is missing or unparseable
+_DEFAULT_PATTERNS: list[str] = [
+    r"rm\s+-[rf]+\s+/",
+    r"rm\s+-[rf]+\s+~",
     r"rm\s+--no-preserve-root",
-    r"mkfs\.",                    # format disk
-    r"dd\s+if=",                  # dd disk copy
-    r":\(\)\s*\{.*:\|:&\s*\}",   # fork bomb
-    r"DROP\s+TABLE",              # SQL destructive
+    r"mkfs\.",
+    r"dd\s+if=",
+    r":\(\)\s*\{.*:\|:&\s*\}",
+    r"DROP\s+TABLE",
     r"DROP\s+DATABASE",
     r"TRUNCATE\s+TABLE",
-    r"shutdown\s+-[hH]",          # system shutdown
+    r"shutdown\s+-[hH]",
     r"halt\b",
     r"poweroff\b",
     r"reboot\b",
-    r"format\s+[A-Za-z]:",        # Windows format
-    r"del\s+/[Ss]\s+/[Qq]",      # Windows del /S /Q
-    r"chmod\s+-R\s+777\s+/",     # chmod 777 root
-    r"chown\s+-R\s+.*\s+/",      # chown root
-    r">\s*/dev/sd[a-z]",          # write to raw disk
-    r"curl.*\|\s*bash",           # curl pipe bash
+    r"format\s+[A-Za-z]:",
+    r"del\s+/[Ss]\s+/[Qq]",
+    r"chmod\s+-R\s+777\s+/",
+    r"chown\s+-R\s+.*\s+/",
+    r">\s*/dev/sd[a-z]",
+    r"curl.*\|\s*bash",
     r"wget.*\|\s*bash",
     r"base64\s+-d.*\|\s*bash",
 ]
-
-_COMPILED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in DANGEROUS_PATTERNS]
 
 
 @dataclass
@@ -50,26 +54,126 @@ class Verdict:
 
 
 class JudicialBranch:
-    def __init__(self, conn: sqlite3.Connection, workspace: str | None = None) -> None:
-        self._conn = conn
-        self._workspace = Path(workspace).resolve() if workspace else None
-
-    def pre_check(
+    def __init__(
         self,
-        tool_name: str,
-        arguments: dict[str, Any],
-        legislative: LegislativeBranch,
-    ) -> Verdict:
+        conn: sqlite3.Connection,
+        judicial_path: Path,
+        workspace: Path | None = None,
+    ) -> None:
+        self._conn = conn
+        self._judicial_path = judicial_path
+        self._workspace = workspace.resolve() if workspace else None
+
+    # -- Parse judicial.md --
+
+    def _parse_judicial(self) -> tuple[set[str], list[re.Pattern]]:
+        """Parse judicial.md → (blocked_tools, compiled_patterns)."""
+        if not self._judicial_path.exists():
+            return set(), [re.compile(p, re.IGNORECASE) for p in _DEFAULT_PATTERNS]
+
+        text = self._judicial_path.read_text(encoding="utf-8")
+        blocked: set[str] = set()
+        patterns: list[str] = []
+        section: str | None = None
+
+        for line in text.splitlines():
+            stripped = line.strip().lower()
+            if stripped.startswith("## blocked tools"):
+                section = "blocked"
+            elif stripped.startswith("## dangerous patterns"):
+                section = "patterns"
+            elif stripped.startswith("## "):
+                section = None
+            elif line.strip().startswith("- ") and section:
+                entry = line.strip()[2:]
+                if section == "blocked":
+                    blocked.add(entry.strip())
+                elif section == "patterns":
+                    # Extract regex from backticks: `pattern` — description
+                    if "`" in entry:
+                        match = re.search(r"`(.+?)`", entry)
+                        if match:
+                            patterns.append(match.group(1))
+
+        compiled = [re.compile(p, re.IGNORECASE) for p in patterns] if patterns else \
+                   [re.compile(p, re.IGNORECASE) for p in _DEFAULT_PATTERNS]
+
+        return blocked, compiled
+
+    # -- Public API for /ban and /approve --
+
+    def ban_tool(self, name: str) -> None:
+        """Add tool to Blocked Tools in judicial.md."""
+        blocked, _ = self._parse_judicial()
+        blocked.add(name)
+        self._write_blocked(blocked)
+        logger.warning("Judicial: tool '{}' blocked", name)
+
+    def approve_tool(self, name: str) -> None:
+        """Remove tool from Blocked Tools in judicial.md."""
+        blocked, _ = self._parse_judicial()
+        blocked.discard(name)
+        self._write_blocked(blocked)
+        logger.info("Judicial: tool '{}' unblocked", name)
+
+    def get_blocked_tools(self) -> set[str]:
+        """Return set of currently blocked tool names."""
+        blocked, _ = self._parse_judicial()
+        return blocked
+
+    def _write_blocked(self, blocked: set[str]) -> None:
+        """Rewrite the Blocked Tools section in judicial.md, preserve the rest."""
+        if not self._judicial_path.exists():
+            return
+
+        text = self._judicial_path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        new_lines: list[str] = []
+        in_blocked = False
+        blocked_written = False
+
+        for line in lines:
+            if line.strip().lower().startswith("## blocked tools"):
+                in_blocked = True
+                new_lines.append(line)
+                new_lines.append("")
+                # Write blocked tool entries
+                new_lines.append("Tools listed here are immediately blocked regardless of laws or constitution.")
+                new_lines.append("Use /ban <tool> to add, /approve <tool> to remove.")
+                new_lines.append("")
+                for name in sorted(blocked):
+                    new_lines.append(f"- {name}")
+                blocked_written = True
+                continue
+            elif line.strip().startswith("## ") and in_blocked:
+                in_blocked = False
+                if not blocked_written:
+                    for name in sorted(blocked):
+                        new_lines.append(f"- {name}")
+                new_lines.append("")
+                new_lines.append(line)
+                continue
+
+            if not in_blocked:
+                new_lines.append(line)
+
+        self._judicial_path.write_text("\n".join(new_lines), encoding="utf-8")
+
+    # -- Pre-check engine --
+
+    def pre_check(self, tool_name: str, arguments: dict[str, Any]) -> Verdict:
         """Run pre-execution checks. Return Verdict(allowed, reason)."""
-        # 1. Check legislative approval
-        if not legislative.is_approved(tool_name):
-            reason = f"Tool '{tool_name}' is not approved by the Legislative branch."
+        blocked, patterns = self._parse_judicial()
+
+        # 1. Check if tool is blocked by judicial order
+        if tool_name in blocked:
+            reason = f"Tool '{tool_name}' is blocked by Judicial order."
             logger.warning("BLOCKED — {}", reason)
             return Verdict(allowed=False, reason=reason)
 
         # 2. Check arguments for dangerous patterns
         args_str = json.dumps(arguments)
-        for pattern in _COMPILED_PATTERNS:
+        for pattern in patterns:
             if pattern.search(args_str):
                 reason = f"Dangerous pattern detected in arguments for '{tool_name}'."
                 logger.warning("BLOCKED — {} | pattern: {}", reason, pattern.pattern)
@@ -79,28 +183,25 @@ class JudicialBranch:
         if self._workspace is not None and tool_name == "exec_cmd":
             for value in self._flatten_values(arguments):
                 if isinstance(value, str) and ("/" in value or "\\" in value):
-                    # Skip URLs — they contain / but aren't file paths
                     if value.startswith(("http://", "https://", "ftp://")):
                         continue
-                    # Skip long strings (likely prompts/messages, not paths)
                     if len(value) > 500:
                         continue
                     try:
                         candidate = Path(value).resolve()
-                        # Only block if it's clearly a path that escapes workspace
                         if candidate.is_absolute():
                             try:
                                 candidate.relative_to(self._workspace)
                             except ValueError:
-                                reason = (
-                                    f"Path '{value[:200]}' is outside the workspace directory."
-                                )
+                                reason = f"Path '{value[:200]}' is outside the workspace directory."
                                 logger.warning("BLOCKED — {}", reason)
                                 return Verdict(allowed=False, reason=reason)
                     except (OSError, ValueError):
                         pass
 
         return Verdict(allowed=True)
+
+    # -- Audit --
 
     def log_action(
         self,
@@ -124,7 +225,7 @@ class JudicialBranch:
     def get_audit_log(
         self, session_key: str | None, limit: int = 50
     ) -> list[dict[str, Any]]:
-        """Return recent audit entries for a session (or all if session_key is None)."""
+        """Return recent audit entries."""
         if session_key is not None:
             rows = self._conn.execute(
                 "SELECT * FROM audit_log WHERE session_key = ? ORDER BY id DESC LIMIT ?",

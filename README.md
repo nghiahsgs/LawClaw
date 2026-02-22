@@ -2,31 +2,46 @@
 
 **The Governed AI Agent Framework — AI with Rule of Law**
 
-LawClaw is an autonomous AI agent that runs on Telegram, governed by a "Separation of Powers" architecture. Every action is checked, logged, and auditable.
+LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân Lập" (Two-Branch Separation of Powers). The AI self-regulates via Constitution + Laws, and a Judicial branch enforces rules automatically — like traffic cameras, no police needed.
 
 ## Architecture
 
 ```
                      ┌──────────────┐
-                     │  CONSTITUTION │  (immutable rules)
+                     │  CONSTITUTION │  (hiến pháp — broad rules)
+                     │  constitution.md
                      └──────┬───────┘
                             │
-         ┌──────────────────┼──────────────────┐
-         │                  │                  │
-  ┌──────▼──────┐   ┌──────▼──────┐   ┌──────▼──────┐
-  │ LEGISLATIVE  │   │  EXECUTIVE   │   │  JUDICIAL    │
-  │              │   │              │   │              │
-  │ Skill        │   │ Agent Loop   │   │ Pre-check    │
-  │ Approval     │   │ Tool Exec    │   │ Audit Log    │
-  │ Laws         │   │ Sub-agents   │   │ Veto Engine  │
-  └──────────────┘   └──────────────┘   └──────────────┘
+              ┌─────────────┼─────────────┐
+              │                           │
+       ┌──────▼──────┐            ┌──────▼──────┐
+       │ LEGISLATIVE  │            │  JUDICIAL    │
+       │              │            │              │
+       │ laws/*.md    │            │ judicial.md  │
+       │ (chi tiết    │            │ (enforcement │
+       │  hoá hiến    │            │  + audit)    │
+       │  pháp)       │            │              │
+       └──────────────┘            └──────────────┘
+              │                           │
+              └───────────┬───────────────┘
+                          │
+                   ┌──────▼──────┐
+                   │  AGENT LOOP  │  (just code, not a branch)
+                   │  LLM → Tool  │
+                   │  → Loop      │
+                   └──────────────┘
 ```
 
-| Branch | Role | Implementation |
-|--------|------|----------------|
-| **Legislative** | What the agent *can* do | Skill approval registry (`skills` table), laws from `~/.lawclaw/laws/` |
-| **Executive** | Does the work | Agent loop, tool calls, sub-agents, cron scheduler |
-| **Judicial** | What the agent *should* do | Dangerous pattern blocking, workspace sandbox, audit trail |
+### How Two-Branch Governance Works
+
+| Layer | What | How | Analogy |
+|-------|------|-----|---------|
+| **Constitution** | Broad rules | Injected into system prompt → LLM follows them | National constitution |
+| **Legislative** | Detailed laws | `laws/*.md` injected into prompt → LLM self-regulates | Traffic laws |
+| **Judicial** | Enforcement | `judicial.md` defines blocked tools + dangerous patterns → auto-blocks | Traffic cameras (phạt nguội) |
+| **Agent Loop** | Execution | LLM calls tools, loop until done | Citizen going about their day |
+
+**The key insight:** Constitution + Laws guide the LLM's behavior (citizen consciousness). If the LLM still tries something dangerous, the Judicial branch blocks it automatically. No "Executive branch" needed — it's all automated enforcement.
 
 ## Quick Start
 
@@ -40,34 +55,25 @@ pip install -e .
 cp .env.example .env
 # Edit .env with your API keys
 
-# 3. Start (auto-creates DB, tables, config, constitution)
+# 3. Start (auto-creates DB + config)
 lawclaw gateway
 ```
-
-That's it. No migration needed — `lawclaw gateway` automatically:
-- Creates `~/.lawclaw/` directory + `config.json` + `constitution.md`
-- Creates SQLite DB with all 5 tables (`CREATE TABLE IF NOT EXISTS`)
-- Auto-approves all built-in tools
 
 ## Configuration
 
 ### Secrets (`.env`)
 
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-your-key-here
-TELEGRAM_TOKEN=123456:ABC-your-bot-token-here
-MODEL=anthropic/claude-sonnet-4-6
-BRAVE_API_KEY=your-brave-api-key-here
+OPENROUTER_API_KEY=sk-or-v1-your-key     # OpenRouter models
+ZAI_API_KEY=your-zai-key                   # Z.AI (Zhipu) models
+TELEGRAM_TOKEN=123456:ABC-token
+MODEL=glm-4.7                              # or anthropic/claude-sonnet-4-6
+BRAVE_API_KEY=your-brave-key
 ```
 
-Priority: `ENV vars` > `CWD/.env` > `~/.lawclaw/.env`
-
-Supported models (via OpenRouter):
-- `anthropic/claude-sonnet-4-6` — recommended, best tool calling
-- `anthropic/claude-opus-4-6` — most capable, expensive
-- `google/gemini-2.5-flash` — cheap, fast, but overly cautious
-- `x-ai/grok-3` — good alternative
-- Any OpenRouter model with tool calling support
+Provider auto-detected from model name:
+- `glm-*` → Z.AI (cheap, good for simple tasks)
+- Everything else → OpenRouter (Sonnet, Gemini, Grok, etc.)
 
 ### Non-secret settings (`~/.lawclaw/config.json`)
 
@@ -76,191 +82,159 @@ Supported models (via OpenRouter):
   "temperature": 0.7,
   "max_tokens": 4096,
   "max_iterations": 15,
-  "memory_window": 40,
-  "auto_approve_builtin_skills": true
+  "memory_window": 40
 }
 ```
 
-## CLI Commands
+## Governance Files
 
-```bash
-lawclaw gateway    # Start Telegram bot + Cron scheduler
-lawclaw chat MSG   # Send a single message via CLI
-lawclaw init       # Initialize config files only
+All governance lives in the repo root — version-controlled, easy to edit:
+
 ```
+LawClaw/
+├── constitution.md    # Hiến pháp — immutable broad rules
+├── judicial.md        # Tư pháp — blocked tools + dangerous patterns
+├── skills.md          # AI capabilities (not governance)
+└── laws/              # Lập pháp — detailed laws
+    ├── safety.md      # No destructive commands, no credential exposure
+    ├── privacy.md     # No unauthorized data access
+    └── conduct.md     # Behavior rules (language, confirmation, transparency)
+```
+
+### Constitution (`constitution.md`)
+
+Broad, immutable rules: owner's rights, boundaries of power, resource limits, transparency, safety. The agent cannot modify this file.
+
+### Laws (`laws/*.md`)
+
+Detailed rules derived from the constitution. Add any `.md` file to `laws/` and it's automatically loaded into the system prompt. Examples: safety law, privacy law, conduct law.
+
+### Judicial Rules (`judicial.md`)
+
+Enforcement config read by the Judicial branch:
+- **Blocked Tools** — tools listed here are immediately blocked (via `/ban`)
+- **Dangerous Patterns** — regex patterns matched against tool arguments (rm -rf, DROP TABLE, curl|bash, etc.)
+- **Workspace Sandbox** — `exec_cmd` restricted to workspace directory
+
+### Skills (`skills.md`)
+
+Just a capability listing — what the AI can do. Not governance. Skills are tools registered in code.
 
 ## Telegram Commands
 
 | Command | Description |
 |---------|-------------|
 | `/new` | Start new session (old messages kept in DB) |
-| `/audit` | View recent audit log |
-| `/skills` | List skill approval statuses |
-| `/approve name` | Approve a pending skill |
-| `/ban name` | Ban a skill |
+| `/audit` | View recent audit log (add `all` for all sessions) |
+| `/skills` | List AI capabilities + blocked status |
+| `/ban tool` | Block a tool via Judicial order |
+| `/approve tool` | Unblock a tool |
 | `/jobs` | List cron jobs |
 | `/help` | Show all commands |
 
-## Built-in Tools
-
-| Tool | Description | Requires |
-|------|-------------|----------|
-| `web_search` | Search the web via Brave Search API | `BRAVE_API_KEY` |
-| `web_fetch` | Fetch & extract readable text from any URL | - |
-| `exec_cmd` | Execute shell commands (sandboxed to workspace) | - |
-| `spawn_subagent` | Delegate complex tasks to sub-agents | - |
-| `manage_cron` | Create/remove/list recurring scheduled jobs | - |
-| `manage_memory` | Persist key-value state across sessions & cron runs | - |
-
 ## How It Works
 
-### Main Agent Flow
+### Agent Flow
 
 ```
 User (Telegram)
   │
   ▼
-Agent.process(message, session_key)
-  │
-  ├── 1. Load history from `messages` table (last 40)
-  ├── 2. Build system prompt: Time + Constitution + Laws + Tools + Capabilities
-  ├── 3. Send to LLM via OpenRouter
+Agent.process(message)
+  ├── 1. Load history from DB
+  ├── 2. Build system prompt: Time + Constitution + Laws + Tools
+  ├── 3. LLM call (OpenRouter or Z.AI)
   │
   ▼
 LLM response: text OR tool_calls
   │
   ├── [tool_calls] → Judicial.pre_check()
-  │     ├── Skill approved? (Legislative)
-  │     ├── Dangerous pattern? (regex: rm -rf, DROP TABLE, curl|bash, etc.)
-  │     └── Path within workspace? (exec_cmd only)
+  │     ├── Tool blocked? (judicial.md Blocked Tools)
+  │     ├── Dangerous pattern? (judicial.md regex patterns)
+  │     └── Path in workspace? (exec_cmd only)
   │          │
-  │          ├── Allowed → execute → log audit → return result → loop
-  │          └── Blocked → "[BLOCKED] reason" → log audit → loop
+  │          ├── Allowed → execute → audit log → loop
+  │          └── Blocked → "[BLOCKED]" → audit log → loop
   │
-  └── [text] → save to `messages` → send to Telegram
+  └── [text] → save to DB → send to Telegram
 ```
 
 ### Cron Jobs
 
-Each cron run gets a fresh session (no history pollution). State persisted via `manage_memory`:
+Each run gets a fresh session. State persisted via `manage_memory`:
 
 ```
-CronService (checks every 10s)
-  │
-  ├── Find jobs WHERE next_run_at <= now
-  │
-  ▼
-on_cron_job(job_id, message, chat_id)
-  ├── Read job's memory from DB (namespace: "job:{job_id}")
+CronService → on_cron_job(job_id, message, chat_id)
+  ├── Load job memory (namespace: "job:{job_id}")
   ├── Inject memory into prompt
-  ├── Agent.process() with fresh session key
-  ├── LLM executes tools + saves state via manage_memory
-  ├── Send result to Telegram chat
-  └── Schedule next_run_at = now + interval
+  ├── Agent.process() with unique session key
+  ├── LLM uses tools + saves state via manage_memory
+  └── Send result to Telegram
 ```
 
 ### Sub-agents
 
-Main agent can spawn sub-agents for parallel task delegation:
-- Sub-agents get base tools only (`web_search`, `web_fetch`, `exec_cmd`)
-- No `spawn_subagent` tool (prevents infinite recursion)
-- Share the same constitution, judicial checks, and LLM
-- Max 5 iterations per sub-agent (vs 15 for main)
-- Stateless — no message persistence
+- Get base tools only (no `spawn_subagent` — prevents recursion)
+- Share same constitution, judicial checks, LLM
+- Max 5 iterations (vs 15 for main)
 
 ## Database
 
-SQLite with WAL mode. All tables auto-created on startup via `CREATE TABLE IF NOT EXISTS`:
+SQLite WAL mode. All tables auto-created on startup:
 
-| Table | Purpose | Key columns |
-|-------|---------|-------------|
-| `messages` | Chat history per session | `session_key`, `role`, `content` |
-| `memory` | Key-value store, scoped by namespace | `key` (format: `{namespace}:{name}`), `value` |
-| `audit_log` | Every tool call (allowed/blocked) | `tool_name`, `arguments`, `result`, `verdict` |
-| `cron_jobs` | Scheduled tasks | `name`, `message`, `interval`, `chat_id` |
-| `skills` | Tool approval registry | `name`, `status` (approved/pending/banned) |
+| Table | Purpose |
+|-------|---------|
+| `messages` | Chat history per session |
+| `memory` | Key-value store, scoped by namespace |
+| `audit_log` | Every tool call (allowed/blocked) |
+| `cron_jobs` | Scheduled tasks |
+| `skills` | _(deprecated — now in skills.md)_ |
 
-Memory namespaces:
-- `user:{chat_id}` — Telegram user's persistent memory (survives `/new`)
-- `job:{job_id}` — Cron job's state (auto-injected into prompt each run)
+Memory namespaces: `user:{chat_id}` for Telegram, `job:{job_id}` for cron.
 
 ## Project Structure
 
 ```
 LawClaw/
-├── .env.example           # Secrets template
-├── .gitignore
-├── constitution.md        # Immutable governance rules
-├── pyproject.toml         # Build config + dependencies
+├── constitution.md        # Hiến pháp
+├── judicial.md            # Tư pháp enforcement rules
+├── skills.md              # AI capabilities
+├── laws/                  # Lập pháp detailed laws
+│   ├── safety.md
+│   ├── privacy.md
+│   └── conduct.md
+├── .env.example
+├── pyproject.toml
 └── lawclaw/
-    ├── config.py          # Config + .env loader (ENV > .env > config.json)
-    ├── db.py              # SQLite schema + helpers (5 tables)
-    ├── main.py            # Entry point, dependency wiring
+    ├── config.py          # Config + .env loader
+    ├── db.py              # SQLite schema + helpers
+    ├── main.py            # Entry point, wiring
     ├── telegram.py        # Telegram bot + commands
     ├── core/
-    │   ├── agent.py       # Executive: agent loop + system prompt
-    │   ├── legislative.py # Legislative: skill approval + laws loader
-    │   ├── judicial.py    # Judicial: pre-check veto + audit logger
-    │   ├── llm.py         # OpenRouter API client
+    │   ├── agent.py       # Agent loop + system prompt
+    │   ├── legislative.py # Load constitution + laws
+    │   ├── judicial.py    # Pre-check veto + audit
+    │   ├── llm.py         # Multi-provider LLM client
     │   ├── tools.py       # Tool registry + base class
-    │   ├── subagent.py    # Ephemeral sub-agent spawner
-    │   └── cron.py        # Cron scheduler (SQLite-backed)
+    │   ├── subagent.py    # Sub-agent spawner
+    │   └── cron.py        # Cron scheduler
     └── tools/
-        ├── web_search.py     # Brave Search API
-        ├── web_fetch.py      # HTTP GET + HTML-to-text extraction
-        ├── exec_cmd.py       # Shell execution (workspace sandbox)
-        ├── spawn_subagent.py # Sub-agent delegation tool
-        ├── manage_cron.py    # Cron job CRUD (add/remove by name or ID/list)
-        └── manage_memory.py  # Persistent key-value store (namespaced)
+        ├── web_search.py
+        ├── web_fetch.py
+        ├── exec_cmd.py
+        ├── spawn_subagent.py
+        ├── manage_cron.py
+        └── manage_memory.py
 ```
-
-## Adding Custom Tools
-
-```python
-from lawclaw.core.tools import Tool
-
-class MyTool(Tool):
-    name = "my_tool"
-    description = "Does something useful"
-    parameters = {
-        "type": "object",
-        "properties": {
-            "input": {"type": "string", "description": "Input value"}
-        },
-        "required": ["input"],
-    }
-
-    async def execute(self, input: str) -> str:
-        return f"Result: {input}"
-```
-
-Register in `main.py`:
-```python
-main_tools.register(MyTool())
-```
-
-If `auto_approve_builtin_skills = true`, tool is auto-approved. Otherwise owner must `/approve my_tool`.
-
-## Constitution
-
-The constitution (`constitution.md`) defines immutable rules that the agent cannot override:
-
-1. **Owner's rights** — Agent cannot deceive or withhold info from owner
-2. **Boundaries** — No unapproved tools, no files outside workspace, no unauthorized messages
-3. **Resource limits** — Tool exec < 120s, agent loop < 15 iterations, cron interval >= 60s
-4. **Transparency** — Every tool call audited, owner can review via `/audit`
-5. **Skill governance** — New skills require approval, owner can `/ban` any skill
-6. **Safety** — Dangerous patterns always blocked (rm -rf, DROP TABLE, curl|bash, etc.)
 
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)
-- **LLM**: OpenRouter (any model with tool calling)
+- **LLM**: OpenRouter + Z.AI (auto-detected from model name)
 - **Database**: SQLite (WAL mode, auto-migration)
 - **Telegram**: python-telegram-bot
 - **HTTP**: httpx (async)
 - **Search**: Brave Search API
-- **Logging**: loguru
 
 ## License
 
