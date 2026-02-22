@@ -118,7 +118,15 @@ async def run_gateway() -> None:
 
     # Cron callback: run agent + send result to Telegram
     async def on_cron_job(job_id: str, message: str, chat_id: str) -> str | None:
-        response = await agent.process(message=message, session_key=f"cron:{job_id}")
+        import time
+        # Each cron run gets a unique session so history doesn't accumulate
+        run_key = f"cron:{job_id}:{int(time.time())}"
+        cron_prompt = (
+            "[SCHEDULED TASK] You are executing an automated cron job. "
+            "Use your tools (exec_cmd, web_search, etc.) if needed to complete the task. "
+            f"Respond with the result only, concisely.\n\nTask: {message}"
+        )
+        response = await agent.process(message=cron_prompt, session_key=run_key)
         if response and chat_id and bot._app:
             try:
                 await bot._app.bot.send_message(chat_id=int(chat_id), text=response)
