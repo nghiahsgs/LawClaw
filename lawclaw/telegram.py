@@ -255,8 +255,18 @@ class TelegramBot:
         chat_id = update.effective_chat.id
         key = self._session_key(chat_id)
 
-        # Show typing indicator
-        await update.effective_chat.send_action("typing")
+        # Keep typing indicator alive every 4s while agent processes
+        typing_active = True
+
+        async def _keep_typing() -> None:
+            while typing_active:
+                try:
+                    await update.effective_chat.send_action("typing")
+                except Exception:
+                    pass
+                await asyncio.sleep(4)
+
+        typing_task = asyncio.create_task(_keep_typing())
 
         try:
             response = await self._agent.process(message=text, session_key=key)
@@ -268,6 +278,9 @@ class TelegramBot:
         except Exception as e:
             logger.error("Error processing message: {}", e)
             await update.message.reply_text(f"⚠️ Error: {str(e)[:200]}")
+        finally:
+            typing_active = False
+            typing_task.cancel()
 
     def _check_access(self, update: Update) -> bool:
         user_id = update.effective_user.id if update.effective_user else None
