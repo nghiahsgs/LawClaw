@@ -32,8 +32,17 @@ Regex patterns matched against tool arguments. If any match, the call is blocked
 - `chown\s+-R\s+.*\s+/` — chown root
 - `>\s*/dev/sd[a-z]` — write to raw disk
 - `curl.*\|\s*bash` — curl pipe to bash
+- `curl.*\|\s*sh` — curl pipe to sh
+- `curl\s+-d\s+@` — curl upload local file (data exfiltration)
+- `curl\s+.*--upload-file` — curl upload local file
+- `curl\s+.*-T\s+/` — curl upload system file
 - `wget.*\|\s*bash` — wget pipe to bash
+- `wget.*\|\s*sh` — wget pipe to sh
 - `base64\s+-d.*\|\s*bash` — base64 decode pipe to bash
+- `python.*-c.*import\s+os` — python inline os commands
+- `python.*-c.*subprocess` — python inline subprocess
+- `eval\s*\(` — eval execution
+- `nc\s+-[le]` — netcat listener (reverse shell)
 
 ## Workspace Sandbox
 

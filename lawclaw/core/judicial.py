@@ -43,8 +43,17 @@ _DEFAULT_PATTERNS: list[str] = [
     r"chown\s+-R\s+.*\s+/",
     r">\s*/dev/sd[a-z]",
     r"curl.*\|\s*bash",
+    r"curl.*\|\s*sh",
+    r"curl\s+-d\s+@",
+    r"curl\s+.*--upload-file",
+    r"curl\s+.*-T\s+/",
     r"wget.*\|\s*bash",
+    r"wget.*\|\s*sh",
     r"base64\s+-d.*\|\s*bash",
+    r"python.*-c.*import\s+os",
+    r"python.*-c.*subprocess",
+    r"eval\s*\(",
+    r"nc\s+-[le]",
 ]
 
 
