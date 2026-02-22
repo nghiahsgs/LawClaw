@@ -273,6 +273,8 @@ MODEL=claude-opus-4-local
 
 The proxy wraps Claude Code CLI as an OpenAI-compatible API server. LawClaw auto-detects the `-local` suffix and routes requests to `localhost:3456`.
 
+**Recommended:** If you have Claude Max, use `claude-opus-4-local` (Opus 4.6). It has the best tool calling, reasoning, and instruction-following of any model — the governance layers work significantly better with a smarter model.
+
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)
