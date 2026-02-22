@@ -59,7 +59,9 @@ class LLMClient:
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(OPENROUTER_URL, headers=self._headers, json=payload)
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                logger.error("LLM error {}: {}", resp.status_code, resp.text[:500])
+                resp.raise_for_status()
             data = resp.json()
 
         return self._parse_response(data)

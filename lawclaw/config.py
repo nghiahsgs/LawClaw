@@ -14,7 +14,7 @@ CONFIG_PATH = CONFIG_DIR / "config.json"
 class Config:
     # LLM
     openrouter_api_key: str = ""
-    model: str = "anthropic/claude-sonnet-4"
+    model: str = "google/gemini-2.5-flash"
     temperature: float = 0.7
     max_tokens: int = 4096
 
