@@ -13,7 +13,7 @@ from lawclaw.config import Config
 from lawclaw.core.agent import Agent
 from lawclaw.core.judicial import JudicialBranch
 from lawclaw.core.legislative import LegislativeBranch
-from lawclaw.db import clear_session
+from lawclaw.db import clear_session  # kept for potential /purge command
 
 
 class TelegramBot:
@@ -33,9 +33,11 @@ class TelegramBot:
         self._legislative = legislative
         self._judicial = judicial
         self._app: Application | None = None
+        self._session_versions: dict[int, int] = {}  # chat_id → version counter
 
     def _session_key(self, chat_id: int) -> str:
-        return f"telegram:{chat_id}"
+        v = self._session_versions.get(chat_id, 0)
+        return f"telegram:{chat_id}:v{v}"
 
     def _is_allowed(self, user_id: int) -> bool:
         if not self._config.telegram_allow_from:
@@ -104,9 +106,12 @@ class TelegramBot:
     async def _on_new(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
-        key = self._session_key(update.effective_chat.id)
-        clear_session(self._conn, key)
-        await update.message.reply_text("🔄 New session started.")
+        chat_id = update.effective_chat.id
+        old_v = self._session_versions.get(chat_id, 0)
+        self._session_versions[chat_id] = old_v + 1
+        await update.message.reply_text(
+            f"🔄 New session started (v{old_v + 1}). Old messages kept in DB."
+        )
 
     async def _on_audit(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
