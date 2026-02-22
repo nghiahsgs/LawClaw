@@ -75,10 +75,16 @@ class JudicialBranch:
                 logger.warning("BLOCKED — {} | pattern: {}", reason, pattern.pattern)
                 return Verdict(allowed=False, reason=reason)
 
-        # 3. Check file paths are within workspace
-        if self._workspace is not None:
+        # 3. Check file paths are within workspace (only for exec_cmd)
+        if self._workspace is not None and tool_name == "exec_cmd":
             for value in self._flatten_values(arguments):
                 if isinstance(value, str) and ("/" in value or "\\" in value):
+                    # Skip URLs — they contain / but aren't file paths
+                    if value.startswith(("http://", "https://", "ftp://")):
+                        continue
+                    # Skip long strings (likely prompts/messages, not paths)
+                    if len(value) > 500:
+                        continue
                     try:
                         candidate = Path(value).resolve()
                         # Only block if it's clearly a path that escapes workspace
@@ -87,7 +93,7 @@ class JudicialBranch:
                                 candidate.relative_to(self._workspace)
                             except ValueError:
                                 reason = (
-                                    f"Path '{value}' is outside the workspace directory."
+                                    f"Path '{value[:200]}' is outside the workspace directory."
                                 )
                                 logger.warning("BLOCKED — {}", reason)
                                 return Verdict(allowed=False, reason=reason)
