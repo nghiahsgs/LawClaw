@@ -153,7 +153,12 @@ class Agent:
 
     def _build_system_prompt(self) -> str:
         """Combine constitution + laws + tool list + personality."""
+        from datetime import datetime, timezone
+
         parts: list[str] = []
+
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        parts.append(f"# Current Time\n\n{now}")
 
         if self._constitution:
             parts.append(f"# Constitution\n\n{self._constitution}")
