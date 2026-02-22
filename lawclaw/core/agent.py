@@ -108,6 +108,9 @@ class Agent:
                             parts = session_key.split(":")
                             if len(parts) >= 2:
                                 cron_tool.set_chat_id(parts[1])
+                        memory_tool = self._tools.get("manage_memory")
+                        if memory_tool and hasattr(memory_tool, "set_namespace"):
+                            memory_tool.set_namespace(session_key)
                         result_str = await self._tools.execute(tc.name, tc.arguments)
                         tools_used.append(tc.name)
                         logger.debug("Tool '{}' executed, result length={}", tc.name, len(result_str))
@@ -186,6 +189,8 @@ class Agent:
             "If you're unsure of the exact name, call manage_cron action='list' first, then remove.\n"
             "- Use `spawn_subagent` to delegate complex tasks to sub-agents. "
             "Sub-agents run independently and return results to you for summarization.\n"
+            "- Use `manage_memory` to persist state across runs (e.g. portfolio balance, trade history). "
+            "Memory is scoped per session/job. For cron jobs, previous memory is auto-injected into the prompt.\n"
             "- Use tools directly (exec_cmd, web_search, web_fetch) for simple one-off tasks.\n"
             "- For real-time data (crypto prices, stock prices, weather, exchange rates), "
             "prefer `web_fetch` with a reliable API (e.g. https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,vnd) "

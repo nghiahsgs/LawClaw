@@ -22,6 +22,7 @@ from lawclaw.db import get_connection, init_db
 from lawclaw.telegram import TelegramBot
 from lawclaw.tools.exec_cmd import ExecCmdTool
 from lawclaw.tools.manage_cron import ManageCronTool
+from lawclaw.tools.manage_memory import ManageMemoryTool, load_memory_for_namespace
 from lawclaw.tools.spawn_subagent import SpawnSubagentTool
 from lawclaw.tools.web_fetch import WebFetchTool
 from lawclaw.tools.web_search import WebSearchTool
@@ -72,6 +73,10 @@ def _build_agent(
     spawn_tool.set_manager(subagent_mgr)
     main_tools.register(spawn_tool)
 
+    # Memory tool (persistent key-value store)
+    memory_tool = ManageMemoryTool(conn)
+    main_tools.register(memory_tool)
+
     # Cron management tool (gateway mode only)
     cron_tool = None
     if cron:
@@ -121,10 +126,21 @@ async def run_gateway() -> None:
         import time
         # Each cron run gets a unique session so history doesn't accumulate
         run_key = f"cron:{job_id}:{int(time.time())}"
+
+        # Set memory namespace to this job so manage_memory is scoped
+        memory_tool.set_namespace(f"job:{job_id}")
+
+        # Auto-inject job's persisted memory into prompt
+        job_memory = load_memory_for_namespace(conn, f"job:{job_id}")
+        memory_section = ""
+        if job_memory:
+            memory_section = f"\n\nYour persisted memory from previous runs:\n{job_memory}\n"
+
         cron_prompt = (
             "[SCHEDULED TASK] You are executing an automated cron job. "
             "Use your tools (exec_cmd, web_search, etc.) if needed to complete the task. "
-            f"Respond with the result only, concisely.\n\nTask: {message}"
+            "Use manage_memory to save any state you need for next run."
+            f"{memory_section}\n\nTask: {message}"
         )
         response = await agent.process(message=cron_prompt, session_key=run_key)
         if response and chat_id and bot._app:
