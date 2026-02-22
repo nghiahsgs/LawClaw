@@ -80,13 +80,21 @@ lawclaw gateway
 OPENROUTER_API_KEY=sk-or-v1-your-key     # OpenRouter models
 ZAI_API_KEY=your-zai-key                   # Z.AI (Zhipu) models
 TELEGRAM_TOKEN=123456:ABC-token
-MODEL=glm-4.7                              # or anthropic/claude-sonnet-4-6
+MODEL=claude-opus-4-local                  # See model options below
 BRAVE_API_KEY=your-brave-key
 ```
 
 Provider auto-detected from model name:
-- `glm-*` → Z.AI (cheap, good for simple tasks)
-- Everything else → OpenRouter (Sonnet, Gemini, Grok, etc.)
+
+| Model | Provider | Cost |
+|-------|----------|------|
+| `claude-opus-4-local` | Claude Max proxy (localhost:3456) | Free (Max subscription) |
+| `claude-sonnet-4-local` | Claude Max proxy (localhost:3456) | Free (Max subscription) |
+| `glm-4.7` | Z.AI | Cheap |
+| `anthropic/claude-sonnet-4-6` | OpenRouter | Pay per token |
+| `google/gemini-2.5-flash` | OpenRouter | Cheap |
+
+**Suffix `-local`** routes to a local Claude Max proxy. See [Claude Max Proxy](#claude-max-proxy) for setup.
 
 ### Non-secret settings (`~/.lawclaw/config.json`)
 
@@ -243,10 +251,32 @@ LawClaw/
         └── manage_memory.py
 ```
 
+## Claude Max Proxy
+
+If you have a Claude Max subscription ($200/month), you can run Claude Opus/Sonnet for free via a local proxy:
+
+```bash
+# 1. Install Claude Code CLI and authenticate
+npm install -g @anthropic-ai/claude-code
+claude auth login
+
+# 2. Clone and start the proxy
+git clone https://github.com/atalovesyou/claude-max-api-proxy.git
+cd claude-max-api-proxy
+npm install && npm run build
+npm start
+# Proxy runs at http://localhost:3456
+
+# 3. Set MODEL in .env
+MODEL=claude-opus-4-local
+```
+
+The proxy wraps Claude Code CLI as an OpenAI-compatible API server. LawClaw auto-detects the `-local` suffix and routes requests to `localhost:3456`.
+
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)
-- **LLM**: OpenRouter + Z.AI (auto-detected from model name)
+- **LLM**: OpenRouter, Z.AI, or Claude Max proxy (auto-detected from model name)
 - **Database**: SQLite (WAL mode, auto-migration)
 - **Telegram**: python-telegram-bot
 - **HTTP**: httpx (async)
