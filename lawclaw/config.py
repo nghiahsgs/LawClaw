@@ -85,7 +85,7 @@ def load_config() -> Config:
         openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", data.get("openrouter_api_key", "")),
         telegram_token=os.environ.get("TELEGRAM_TOKEN", data.get("telegram_token", "")),
         # Non-secret settings from config.json
-        model=data.get("model", "google/gemini-2.5-flash"),
+        model=os.environ.get("MODEL", data.get("model", "google/gemini-2.5-flash")),
         temperature=data.get("temperature", 0.7),
         max_tokens=data.get("max_tokens", 4096),
         telegram_allow_from=data.get("telegram_allow_from", []),
