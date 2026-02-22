@@ -269,8 +269,34 @@ class TelegramBot:
 
         typing_task = asyncio.create_task(_keep_typing())
 
+        # Progress callback — sends brief status to Telegram on each tool execution
+        status_msg = None  # Reuse a single message to avoid spam
+
+        def _on_progress(tool_name: str, args_preview: str, result_preview: str) -> None:
+            nonlocal status_msg
+            icons = {
+                "web_search": "🔍", "web_fetch": "🌐", "exec_cmd": "⚙️",
+                "manage_memory": "💾", "manage_cron": "⏰", "spawn_subagent": "🤖",
+            }
+            icon = icons.get(tool_name, "🔧")
+            # Truncate args for display
+            short_args = args_preview[:80].replace("\n", " ")
+            text_msg = f"{icon} `{tool_name}` {short_args}..."
+
+            async def _send() -> None:
+                nonlocal status_msg
+                try:
+                    if status_msg:
+                        await status_msg.edit_text(text_msg, parse_mode="Markdown")
+                    else:
+                        status_msg = await update.message.reply_text(text_msg, parse_mode="Markdown")
+                except Exception:
+                    pass  # Telegram rate limit or parse error — skip
+
+            asyncio.create_task(_send())
+
         try:
-            response = await self._agent.process(message=text, session_key=key)
+            response = await self._agent.process(message=text, session_key=key, on_progress=_on_progress)
             if response:
                 # Telegram has 4096 char limit — split if needed
                 for i in range(0, len(response), 4000):
@@ -286,6 +312,12 @@ class TelegramBot:
         finally:
             typing_active = False
             typing_task.cancel()
+            # Clean up progress status message
+            if status_msg:
+                try:
+                    await status_msg.delete()
+                except Exception:
+                    pass
 
     def _check_access(self, update: Update) -> bool:
         user_id = update.effective_user.id if update.effective_user else None
