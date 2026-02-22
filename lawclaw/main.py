@@ -21,6 +21,7 @@ from lawclaw.core.tools import ToolRegistry
 from lawclaw.db import get_connection, init_db
 from lawclaw.telegram import TelegramBot
 from lawclaw.tools.exec_cmd import ExecCmdTool
+from lawclaw.tools.manage_cron import ManageCronTool
 from lawclaw.tools.spawn_subagent import SpawnSubagentTool
 from lawclaw.tools.web_fetch import WebFetchTool
 from lawclaw.tools.web_search import WebSearchTool
@@ -55,31 +56,38 @@ def _build_agent(
     legislative: LegislativeBranch,
     judicial: JudicialBranch,
     llm: LLMClient,
-) -> Agent:
-    """Build agent with base tools + spawn_subagent wired up."""
+    cron: CronService | None = None,
+) -> tuple[Agent, ManageCronTool | None]:
+    """Build agent with base tools + spawn + cron management."""
     base_tools = _make_base_tools(config.workspace)
 
-    # Sub-agents get base tools only (no spawn — prevents recursion)
     subagent_mgr = SubagentManager(
         config=config, conn=conn,
         legislative=legislative, judicial=judicial,
         tools=base_tools,
     )
 
-    # Main agent gets base tools + spawn
     main_tools = _make_base_tools(config.workspace)
     spawn_tool = SpawnSubagentTool()
     spawn_tool.set_manager(subagent_mgr)
     main_tools.register(spawn_tool)
 
+    # Cron management tool (gateway mode only)
+    cron_tool = None
+    if cron:
+        cron_tool = ManageCronTool()
+        cron_tool.set_cron(cron)
+        main_tools.register(cron_tool)
+
     if config.auto_approve_builtin_skills:
         legislative.register_builtin(main_tools.list_names())
 
-    return Agent(
+    agent = Agent(
         config=config, conn=conn,
         legislative=legislative, judicial=judicial,
         tools=main_tools, llm=llm,
     )
+    return agent, cron_tool
 
 
 async def run_gateway() -> None:
@@ -99,19 +107,27 @@ async def run_gateway() -> None:
     judicial = JudicialBranch(conn, workspace=Path(config.workspace))
     llm = LLMClient(config)
 
-    agent = _build_agent(config, conn, legislative, judicial, llm)
-
-    # Cron
-    async def on_cron_job(job_id: str, message: str, chat_id: str) -> str | None:
-        return await agent.process(message=message, session_key=f"cron:{job_id}")
-
-    cron = CronService(conn=conn, on_job=on_cron_job)
-    cron.start()
+    # Cron + Agent (cron created first so agent gets the tool)
+    cron = CronService(conn=conn)
+    agent, cron_tool = _build_agent(config, conn, legislative, judicial, llm, cron=cron)
 
     bot = TelegramBot(
         config=config, agent=agent, conn=conn,
         legislative=legislative, judicial=judicial,
     )
+
+    # Cron callback: run agent + send result to Telegram
+    async def on_cron_job(job_id: str, message: str, chat_id: str) -> str | None:
+        response = await agent.process(message=message, session_key=f"cron:{job_id}")
+        if response and chat_id and bot._app:
+            try:
+                await bot._app.bot.send_message(chat_id=int(chat_id), text=response)
+            except Exception as e:
+                logger.error("Failed to send cron result to {}: {}", chat_id, e)
+        return response
+
+    cron.on_job = on_cron_job
+    cron.start()
 
     logger.info("LawClaw gateway starting...")
     logger.info("   Model: {}", config.model)
@@ -140,7 +156,7 @@ async def run_cli(message: str) -> None:
     judicial = JudicialBranch(conn, workspace=Path(config.workspace))
     llm = LLMClient(config)
 
-    agent = _build_agent(config, conn, legislative, judicial, llm)
+    agent, _ = _build_agent(config, conn, legislative, judicial, llm)
 
     response = await agent.process(message=message, session_key="cli:direct")
     print(response)
