@@ -275,7 +275,11 @@ class TelegramBot:
                 # Telegram has 4096 char limit — split if needed
                 for i in range(0, len(response), 4000):
                     chunk = response[i:i + 4000]
-                    await update.message.reply_text(chunk)
+                    try:
+                        await update.message.reply_text(chunk, parse_mode="Markdown")
+                    except Exception:
+                        # Fallback to plain text if Markdown parsing fails
+                        await update.message.reply_text(chunk)
         except Exception as e:
             logger.error("Error processing message: {}", e)
             await update.message.reply_text(f"⚠️ Error: {str(e)[:200]}")
