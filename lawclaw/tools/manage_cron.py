@@ -12,7 +12,7 @@ class ManageCronTool(Tool):
     description = (
         "Manage scheduled cron jobs. Actions: "
         "'add' to create a recurring job (specify name, message/prompt to run, interval_seconds), "
-        "'remove' to delete a job by ID, "
+        "'remove' to delete a job by name or ID (provide either 'name' or 'job_id'), "
         "'list' to show all jobs."
     )
     parameters: dict[str, Any] = {
@@ -25,7 +25,7 @@ class ManageCronTool(Tool):
             },
             "name": {
                 "type": "string",
-                "description": "Job name (required for 'add').",
+                "description": "Job name (required for 'add', can also be used for 'remove').",
             },
             "message": {
                 "type": "string",
@@ -37,7 +37,7 @@ class ManageCronTool(Tool):
             },
             "job_id": {
                 "type": "string",
-                "description": "Job ID to remove (required for 'remove').",
+                "description": "Job ID to remove (optional for 'remove' — can use 'name' instead).",
             },
         },
         "required": ["action"],
@@ -88,10 +88,16 @@ class ManageCronTool(Tool):
             return f"Cron job created: '{name}' (ID: {job_id}), runs every {interval}s."
 
         elif action == "remove":
-            if not job_id:
-                return "[ERROR] 'job_id' is required for 'remove'."
-            if self._cron.remove_job(job_id):
-                return f"Cron job {job_id} removed."
-            return f"Job {job_id} not found."
+            if job_id:
+                if self._cron.remove_job(job_id):
+                    return f"Cron job {job_id} removed."
+                return f"Job {job_id} not found."
+            elif name:
+                count = self._cron.remove_job_by_name(name)
+                if count > 0:
+                    return f"Removed {count} cron job(s) named '{name}'."
+                return f"No cron job named '{name}' found."
+            else:
+                return "[ERROR] Provide 'job_id' or 'name' for 'remove'."
 
         return f"Unknown action: {action}"

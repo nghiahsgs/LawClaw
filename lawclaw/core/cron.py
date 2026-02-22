@@ -129,6 +129,12 @@ class CronService:
         self._conn.commit()
         return cursor.rowcount > 0
 
+    def remove_job_by_name(self, name: str) -> int:
+        """Remove cron job(s) by name. Returns number of jobs removed."""
+        cursor = self._conn.execute("DELETE FROM cron_jobs WHERE name = ?", (name,))
+        self._conn.commit()
+        return cursor.rowcount
+
     def list_jobs(self) -> list[dict]:
         """List all active cron jobs."""
         rows = self._conn.execute(
