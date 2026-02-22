@@ -98,6 +98,10 @@ class Agent:
                         result_str = f"[BLOCKED] {verdict.reason}"
                         logger.warning("Tool '{}' blocked: {}", tc.name, verdict.reason)
                     else:
+                        # Pass session_key to spawn tool so sub-agent inherits it
+                        spawn_tool = self._tools.get("spawn_subagent")
+                        if spawn_tool and hasattr(spawn_tool, "set_session_key"):
+                            spawn_tool.set_session_key(session_key)
                         result_str = await self._tools.execute(tc.name, tc.arguments)
                         tools_used.append(tc.name)
                         logger.debug("Tool '{}' executed, result length={}", tc.name, len(result_str))
