@@ -194,7 +194,7 @@ class TelegramBot:
             return
         args = update.message.text.split(maxsplit=1)
         if len(args) < 2:
-            await update.message.reply_text("Usage: /approve tool\_name")
+            await update.message.reply_text("Usage: /approve tool_name")
             return
         tool_name = args[1].strip()
         self._judicial.approve_tool(tool_name)
@@ -205,7 +205,7 @@ class TelegramBot:
             return
         args = update.message.text.split(maxsplit=1)
         if len(args) < 2:
-            await update.message.reply_text("Usage: /ban tool\_name")
+            await update.message.reply_text("Usage: /ban tool_name")
             return
         tool_name = args[1].strip()
         self._judicial.ban_tool(tool_name)
