@@ -1,11 +1,12 @@
-"""Judicial branch — pre-check engine and audit logger.
+"""Pre-Judicial branch — pre-check engine and audit logger.
 
-Reads enforcement rules from judicial.md:
+Checks LLM output BEFORE execution. Reads enforcement rules from judicial.md:
   - Blocked tools (via /ban, /approve)
   - Dangerous regex patterns
   - Workspace sandbox (exec_cmd only)
 
-Acts as automated enforcement ("camera phạt nguội") — no police needed.
+Acts as automated enforcement ("camera phạt nguội") — blocks illegal actions
+before they happen, like traffic cameras catching violations in real-time.
 """
 
 from __future__ import annotations
@@ -107,14 +108,14 @@ class JudicialBranch:
         blocked, _ = self._parse_judicial()
         blocked.add(name)
         self._write_blocked(blocked)
-        logger.warning("Judicial: tool '{}' blocked", name)
+        logger.warning("Pre-Judicial: tool '{}' blocked", name)
 
     def approve_tool(self, name: str) -> None:
         """Remove tool from Blocked Tools in judicial.md."""
         blocked, _ = self._parse_judicial()
         blocked.discard(name)
         self._write_blocked(blocked)
-        logger.info("Judicial: tool '{}' unblocked", name)
+        logger.info("Pre-Judicial: tool '{}' unblocked", name)
 
     def get_blocked_tools(self) -> set[str]:
         """Return set of currently blocked tool names."""
@@ -167,7 +168,7 @@ class JudicialBranch:
 
         # 1. Check if tool is blocked by judicial order
         if tool_name in blocked:
-            reason = f"Tool '{tool_name}' is blocked by Judicial order."
+            reason = f"Tool '{tool_name}' is blocked by Pre-Judicial order."
             logger.warning("BLOCKED — {}", reason)
             return Verdict(allowed=False, reason=reason)
 

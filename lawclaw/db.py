@@ -45,7 +45,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             updated_at REAL NOT NULL DEFAULT (unixepoch('now'))
         );
 
-        -- Audit log (Judicial branch)
+        -- Audit log (Pre-Judicial enforcement)
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_key TEXT,

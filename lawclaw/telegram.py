@@ -184,7 +184,7 @@ class TelegramBot:
         lines = ["🧠 *AI Skills:*\n"]
         for name in sorted(tool_names):
             if name in blocked:
-                lines.append(f"🚫 `{name}` — blocked by Judicial")
+                lines.append(f"🚫 `{name}` — blocked by Pre-Judicial")
             else:
                 lines.append(f"✅ `{name}`")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
@@ -198,7 +198,7 @@ class TelegramBot:
             return
         tool_name = args[1].strip()
         self._judicial.approve_tool(tool_name)
-        await update.message.reply_text(f"✅ `{tool_name}` unblocked by Judicial.", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ `{tool_name}` unblocked by Pre-Judicial.", parse_mode="Markdown")
 
     async def _on_ban(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
@@ -209,7 +209,7 @@ class TelegramBot:
             return
         tool_name = args[1].strip()
         self._judicial.ban_tool(tool_name)
-        await update.message.reply_text(f"🚫 `{tool_name}` blocked by Judicial.", parse_mode="Markdown")
+        await update.message.reply_text(f"🚫 `{tool_name}` blocked by Pre-Judicial.", parse_mode="Markdown")
 
     async def _on_jobs(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):

@@ -2,46 +2,59 @@
 
 **The Governed AI Agent Framework — AI with Rule of Law**
 
-LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân Lập" (Two-Branch Separation of Powers). The AI self-regulates via Constitution + Laws, and a Judicial branch enforces rules automatically — like traffic cameras, no police needed.
+LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân Lập" (Separation of Powers). Three governance layers: Constitution + Legislative define the rules (injected into system prompt → LLM self-regulates), and Pre-Judicial enforces them automatically before tool execution — like traffic cameras (camera phạt nguội), no police needed.
 
 ## Architecture
 
 ```
-                     ┌──────────────┐
-                     │  CONSTITUTION │  (hiến pháp — broad rules)
-                     │  constitution.md
-                     └──────┬───────┘
-                            │
-              ┌─────────────┼─────────────┐
-              │                           │
-       ┌──────▼──────┐            ┌──────▼──────┐
-       │ LEGISLATIVE  │            │  JUDICIAL    │
-       │              │            │              │
-       │ laws/*.md    │            │ judicial.md  │
-       │ (chi tiết    │            │ (enforcement │
-       │  hoá hiến    │            │  + audit)    │
-       │  pháp)       │            │              │
-       └──────────────┘            └──────────────┘
-              │                           │
-              └───────────┬───────────────┘
-                          │
-                   ┌──────▼──────┐
-                   │  AGENT LOOP  │  (just code, not a branch)
-                   │  LLM → Tool  │
-                   │  → Loop      │
-                   └──────────────┘
+    ┌───────────────────────────────────────────┐
+    │            BEFORE LLM CALL                │
+    │                                           │
+    │  ┌──────────────┐    ┌──────────────┐     │
+    │  │ CONSTITUTION  │    │ LEGISLATIVE   │    │
+    │  │ constitution  │    │ laws/*.md     │    │
+    │  │ .md (hiến     │    │ (chi tiết     │    │
+    │  │ pháp)         │    │ hoá hiến pháp)│    │
+    │  └──────┬────────┘    └──────┬────────┘    │
+    │         └────────┬───────────┘             │
+    │                  ▼                         │
+    │        System Prompt → LLM                 │
+    └───────────────────────────────────────────┘
+                       │
+                  LLM Output (tool_calls)
+                       │
+    ┌──────────────────▼────────────────────────┐
+    │          BEFORE TOOL EXECUTION            │
+    │                                           │
+    │  ┌──────────────────────────────────┐     │
+    │  │       PRE-JUDICIAL                │     │
+    │  │       judicial.md                 │     │
+    │  │       (camera phạt nguội)         │     │
+    │  │                                   │     │
+    │  │  • Blocked tools?                 │     │
+    │  │  • Dangerous patterns?            │     │
+    │  │  • Path in workspace?             │     │
+    │  └──────────────┬────────────────────┘     │
+    │          allowed │ blocked                 │
+    └─────────────────┼─────────────────────────┘
+                      ▼
+               ┌──────────────┐
+               │  AGENT LOOP   │  (just code)
+               │  Execute Tool │
+               │  → Loop       │
+               └──────────────┘
 ```
 
-### How Two-Branch Governance Works
+### How Three-Layer Governance Works
 
-| Layer | What | How | Analogy |
-|-------|------|-----|---------|
-| **Constitution** | Broad rules | Injected into system prompt → LLM follows them | National constitution |
-| **Legislative** | Detailed laws | `laws/*.md` injected into prompt → LLM self-regulates | Traffic laws |
-| **Judicial** | Enforcement | `judicial.md` defines blocked tools + dangerous patterns → auto-blocks | Traffic cameras (phạt nguội) |
-| **Agent Loop** | Execution | LLM calls tools, loop until done | Citizen going about their day |
+| Layer | When | What | How | Analogy |
+|-------|------|------|-----|---------|
+| **Constitution** | Before LLM call | Broad immutable rules | Injected into system prompt | Hiến pháp |
+| **Legislative** | Before LLM call | Detailed laws | `laws/*.md` injected into prompt → LLM self-regulates | Luật giao thông |
+| **Pre-Judicial** | Before tool execution | Enforcement | Checks LLM output → auto-blocks violations | Camera phạt nguội |
+| **Agent Loop** | Runtime | Execution | LLM calls tools, loop until done | Citizen going about their day |
 
-**The key insight:** Constitution + Laws guide the LLM's behavior (citizen consciousness). If the LLM still tries something dangerous, the Judicial branch blocks it automatically. No "Executive branch" needed — it's all automated enforcement.
+**The key insight:** Constitution + Laws guide the LLM's behavior BEFORE it acts (citizen consciousness). Pre-Judicial checks the LLM's OUTPUT before actual execution. No "Executive branch" or police needed — just automated enforcement like traffic cameras.
 
 ## Quick Start
 
@@ -92,13 +105,16 @@ All governance lives in the repo root — version-controlled, easy to edit:
 
 ```
 LawClaw/
-├── constitution.md    # Hiến pháp — immutable broad rules
-├── judicial.md        # Tư pháp — blocked tools + dangerous patterns
-├── skills.md          # AI capabilities (not governance)
-└── laws/              # Lập pháp — detailed laws
-    ├── safety.md      # No destructive commands, no credential exposure
-    ├── privacy.md     # No unauthorized data access
-    └── conduct.md     # Behavior rules (language, confirmation, transparency)
+├── constitution.md    # Hiến pháp — immutable broad rules (→ system prompt)
+├── judicial.md        # Pre-Tư pháp — blocked tools + dangerous patterns (→ pre-check)
+├── laws/              # Lập pháp — detailed laws (→ system prompt)
+│   ├── safety.md
+│   ├── privacy.md
+│   └── conduct.md
+└── skills/            # Skill playbooks — HOW to use tools (→ system prompt)
+    ├── web-search.md
+    ├── cron-jobs.md
+    └── memory-management.md
 ```
 
 ### Constitution (`constitution.md`)
@@ -109,16 +125,16 @@ Broad, immutable rules: owner's rights, boundaries of power, resource limits, tr
 
 Detailed rules derived from the constitution. Add any `.md` file to `laws/` and it's automatically loaded into the system prompt. Examples: safety law, privacy law, conduct law.
 
-### Judicial Rules (`judicial.md`)
+### Pre-Judicial Rules (`judicial.md`)
 
-Enforcement config read by the Judicial branch:
+Enforcement config read by the Pre-Judicial layer — checked AFTER LLM output, BEFORE tool execution:
 - **Blocked Tools** — tools listed here are immediately blocked (via `/ban`)
 - **Dangerous Patterns** — regex patterns matched against tool arguments (rm -rf, DROP TABLE, curl|bash, etc.)
 - **Workspace Sandbox** — `exec_cmd` restricted to workspace directory
 
-### Skills (`skills.md`)
+### Skills (`skills/`)
 
-Just a capability listing — what the AI can do. Not governance. Skills are tools registered in code.
+Directory of playbooks — describe HOW to use each tool effectively. Not governance. Loaded into system prompt so the LLM knows best practices for web search, cron jobs, memory, etc. Add any `.md` file to `skills/`.
 
 ## Telegram Commands
 
@@ -142,15 +158,15 @@ User (Telegram)
   ▼
 Agent.process(message)
   ├── 1. Load history from DB
-  ├── 2. Build system prompt: Time + Constitution + Laws + Tools
+  ├── 2. Build system prompt: Time + Constitution + Laws + Skills + Tools
   ├── 3. LLM call (OpenRouter or Z.AI)
   │
   ▼
 LLM response: text OR tool_calls
   │
-  ├── [tool_calls] → Judicial.pre_check()
+  ├── [tool_calls] → PreJudicial.pre_check()
   │     ├── Tool blocked? (judicial.md Blocked Tools)
-  │     ├── Dangerous pattern? (judicial.md regex patterns)
+  │     ├── Dangerous pattern? (judicial.md regex)
   │     └── Path in workspace? (exec_cmd only)
   │          │
   │          ├── Allowed → execute → audit log → loop
@@ -188,7 +204,7 @@ SQLite WAL mode. All tables auto-created on startup:
 | `memory` | Key-value store, scoped by namespace |
 | `audit_log` | Every tool call (allowed/blocked) |
 | `cron_jobs` | Scheduled tasks |
-| `skills` | _(deprecated — now in skills.md)_ |
+| `skills` | _(deprecated — now in skills/)_ |
 
 Memory namespaces: `user:{chat_id}` for Telegram, `job:{job_id}` for cron.
 
@@ -197,8 +213,8 @@ Memory namespaces: `user:{chat_id}` for Telegram, `job:{job_id}` for cron.
 ```
 LawClaw/
 ├── constitution.md        # Hiến pháp
-├── judicial.md            # Tư pháp enforcement rules
-├── skills.md              # AI capabilities
+├── judicial.md            # Pre-Tư pháp enforcement rules
+├── skills/                # Skill playbooks (how to use tools)
 ├── laws/                  # Lập pháp detailed laws
 │   ├── safety.md
 │   ├── privacy.md
@@ -213,7 +229,7 @@ LawClaw/
     ├── core/
     │   ├── agent.py       # Agent loop + system prompt
     │   ├── legislative.py # Load constitution + laws
-    │   ├── judicial.py    # Pre-check veto + audit
+    │   ├── judicial.py    # Pre-Judicial enforcement + audit
     │   ├── llm.py         # Multi-provider LLM client
     │   ├── tools.py       # Tool registry + base class
     │   ├── subagent.py    # Sub-agent spawner

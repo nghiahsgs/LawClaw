@@ -1,7 +1,8 @@
-# Judicial Rules
+# Pre-Judicial Rules
 
-Enforcement rules for the Judicial branch. These are checked automatically
-before every tool execution. If a rule is violated, the tool call is BLOCKED.
+Enforcement rules for the Pre-Judicial layer. These are checked automatically
+before every tool execution — like traffic cameras (camera phạt nguội).
+If a rule is violated, the tool call is BLOCKED before it runs.
 
 ## Blocked Tools
 

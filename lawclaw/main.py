@@ -50,6 +50,7 @@ def _build_branches(conn: sqlite3.Connection, workspace: str) -> tuple[Legislati
     legislative = LegislativeBranch(
         constitution_path=REPO_ROOT / "constitution.md",
         laws_dir=REPO_ROOT / "laws",
+        skills_dir=REPO_ROOT / "skills",
     )
     judicial = JudicialBranch(
         conn=conn,
@@ -196,7 +197,7 @@ def cli() -> None:
         _setup_workspace()
         load_config()
         print(f"LawClaw initialized at {CONFIG_DIR}")
-        print(f"   Governance: {REPO_ROOT} (constitution.md, judicial.md, skills.md, laws/)")
+        print(f"   Governance: {REPO_ROOT} (constitution.md, judicial.md, laws/, skills/)")
 
     elif cmd == "gateway":
         asyncio.run(run_gateway())

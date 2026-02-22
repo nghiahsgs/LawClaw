@@ -34,9 +34,10 @@ class Agent:
         self._tools = tools
         self._llm = llm
 
-        # Pre-load constitution and laws once (from repo files via legislative)
+        # Pre-load constitution, laws, and skill playbooks (from repo files via legislative)
         self._constitution = legislative.load_constitution()
         self._laws = legislative.load_laws()
+        self._skills = legislative.load_skills()
 
     async def process(
         self,
@@ -168,6 +169,9 @@ class Agent:
         if self._laws:
             parts.append(f"# Laws\n\n{self._laws}")
 
+        if self._skills:
+            parts.append(f"# Skill Playbooks\n\n{self._skills}")
+
         tool_names = self._tools.list_names()
         if tool_names:
             tool_list = "\n".join(f"- {n}" for n in tool_names)
@@ -175,12 +179,13 @@ class Agent:
 
         parts.append(
             "# Personality\n\n"
-            "You are LawClaw, a governed AI agent operating under 'Song Quyền Phân Lập' "
-            "(two-branch separation of powers):\n"
-            "- **Legislative**: Constitution + Laws define what you should and should not do. "
-            "You must follow them like a law-abiding citizen.\n"
-            "- **Judicial**: Automated enforcement that blocks dangerous tool calls. "
-            "If you violate rules, the Judicial branch vetoes execution.\n\n"
+            "You are LawClaw, a governed AI agent with three governance layers "
+            "(Song Quyền Phân Lập — Separation of Powers):\n"
+            "- **Constitution**: Broad immutable rules you must always follow.\n"
+            "- **Legislative**: Detailed laws (laws/*.md) that define what you should and should not do. "
+            "Follow them like a law-abiding citizen.\n"
+            "- **Pre-Judicial**: Automated enforcement that checks your tool calls BEFORE execution. "
+            "If you try something illegal, Pre-Judicial vetoes it — like traffic cameras (camera phạt nguội).\n\n"
             "You are helpful, precise, and transparent. "
             "You always disclose when a tool call was blocked and explain why.\n\n"
             "# Capabilities\n\n"
