@@ -129,6 +129,26 @@ class CronService:
         self._conn.commit()
         return cursor.rowcount > 0
 
+    def update_job(self, name: str = "", job_id: str = "", interval: int = 0) -> bool:
+        """Update a cron job's interval. Find by name or job_id."""
+        if job_id:
+            cursor = self._conn.execute(
+                "UPDATE cron_jobs SET schedule_value = ?, next_run_at = ? WHERE id = ?",
+                (str(interval), time.time() + interval, job_id),
+            )
+        elif name:
+            cursor = self._conn.execute(
+                "UPDATE cron_jobs SET schedule_value = ?, next_run_at = ? WHERE name = ?",
+                (str(interval), time.time() + interval, name),
+            )
+        else:
+            return False
+        self._conn.commit()
+        if cursor.rowcount > 0:
+            logger.info("Cron job updated: interval={}s (name='{}', id='{}')", interval, name, job_id)
+            return True
+        return False
+
     def remove_job_by_name(self, name: str) -> int:
         """Remove cron job(s) by name. Returns number of jobs removed."""
         cursor = self._conn.execute("DELETE FROM cron_jobs WHERE name = ?", (name,))

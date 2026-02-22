@@ -13,6 +13,7 @@ class ManageCronTool(Tool):
         "Manage scheduled cron jobs. Actions: "
         "'add' to create a recurring job (specify name, message/prompt to run, interval_seconds), "
         "'remove' to delete a job by name or ID (provide either 'name' or 'job_id'), "
+        "'update' to change a job's interval (provide name or job_id + interval_seconds), "
         "'list' to show all jobs."
     )
     parameters: dict[str, Any] = {
@@ -20,7 +21,7 @@ class ManageCronTool(Tool):
         "properties": {
             "action": {
                 "type": "string",
-                "enum": ["add", "remove", "list"],
+                "enum": ["add", "remove", "update", "list"],
                 "description": "Action to perform.",
             },
             "name": {
@@ -99,5 +100,14 @@ class ManageCronTool(Tool):
                 return f"No cron job named '{name}' found."
             else:
                 return "[ERROR] Provide 'job_id' or 'name' for 'remove'."
+
+        elif action == "update":
+            if not interval_seconds:
+                return "[ERROR] 'interval_seconds' is required for 'update'."
+            interval = max(60, interval_seconds)
+            updated = self._cron.update_job(name=name, job_id=job_id, interval=interval)
+            if updated:
+                return f"Cron job updated: interval changed to {interval}s."
+            return f"Job not found (name='{name}', id='{job_id}')."
 
         return f"Unknown action: {action}"
