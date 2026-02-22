@@ -43,6 +43,7 @@ def _load_dotenv() -> None:
 class Config:
     # Secrets (prefer ENV vars)
     openrouter_api_key: str = ""
+    zai_api_key: str = ""
     telegram_token: str = ""
 
     # LLM
@@ -83,6 +84,7 @@ def load_config() -> Config:
     config = Config(
         # Secrets: ENV > config.json
         openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", data.get("openrouter_api_key", "")),
+        zai_api_key=os.environ.get("ZAI_API_KEY", data.get("zai_api_key", "")),
         telegram_token=os.environ.get("TELEGRAM_TOKEN", data.get("telegram_token", "")),
         # Non-secret settings from config.json
         model=os.environ.get("MODEL", data.get("model", "google/gemini-2.5-flash")),
