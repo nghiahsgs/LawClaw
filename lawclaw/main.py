@@ -128,7 +128,9 @@ async def run_gateway() -> None:
         run_key = f"cron:{job_id}:{int(time.time())}"
 
         # Set memory namespace to this job so manage_memory is scoped
-        memory_tool.set_namespace(f"job:{job_id}")
+        mem_tool = agent._tools.get("manage_memory")
+        if mem_tool:
+            mem_tool.set_namespace(f"job:{job_id}")
 
         # Auto-inject job's persisted memory into prompt
         job_memory = load_memory_for_namespace(conn, f"job:{job_id}")
