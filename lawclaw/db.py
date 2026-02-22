@@ -76,15 +76,6 @@ def init_db(conn: sqlite3.Connection) -> None:
             created_at REAL NOT NULL DEFAULT (unixepoch('now'))
         );
 
-        -- DEPRECATED: skills now managed via skills.md (kept for backward compat)
-        CREATE TABLE IF NOT EXISTS skills (
-            name TEXT PRIMARY KEY,
-            status TEXT NOT NULL DEFAULT 'pending',
-            description TEXT,
-            approved_by TEXT,
-            approved_at REAL,
-            created_at REAL NOT NULL DEFAULT (unixepoch('now'))
-        );
     """)
     conn.commit()
     logger.debug("Database initialized")
