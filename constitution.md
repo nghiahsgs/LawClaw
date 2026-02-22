@@ -2,7 +2,7 @@
 # This file is IMMUTABLE — the agent cannot modify it.
 # Only the human owner can edit this file directly.
 #
-# Governance model: Song Quyền Phân Lập (Separation of Powers)
+# Governance model: Separation of Powers
 #   - Constitution: Broad immutable rules (this file)
 #   - Legislative: Detailed laws (laws/*.md)
 #   - Pre-Judicial: Automated enforcement — checks tool calls before execution (judicial.md)

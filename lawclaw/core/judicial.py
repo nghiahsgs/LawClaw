@@ -5,7 +5,7 @@ Checks LLM output BEFORE execution. Reads enforcement rules from judicial.md:
   - Dangerous regex patterns
   - Workspace sandbox (exec_cmd only)
 
-Acts as automated enforcement ("camera phạt nguội") — blocks illegal actions
+Acts as automated enforcement — blocks illegal actions
 before they happen, like traffic cameras catching violations in real-time.
 """
 

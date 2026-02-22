@@ -2,7 +2,7 @@
 
 **The Governed AI Agent Framework — AI with Rule of Law**
 
-LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân Lập" (Separation of Powers). Three governance layers: Constitution + Legislative define the rules (injected into system prompt → LLM self-regulates), and Pre-Judicial enforces them automatically before tool execution — like traffic cameras (camera phạt nguội), no police needed.
+LawClaw is an autonomous AI agent on Telegram, governed by separation of powers. Three governance layers: Constitution + Legislative define the rules (injected into system prompt — LLM self-regulates), and Pre-Judicial enforces them automatically before tool execution — like traffic cameras, no police needed.
 
 ## Architecture
 
@@ -13,8 +13,8 @@ LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân L
     │  ┌──────────────┐    ┌──────────────┐     │
     │  │ CONSTITUTION  │    │ LEGISLATIVE   │    │
     │  │ constitution  │    │ laws/*.md     │    │
-    │  │ .md (hiến     │    │ (chi tiết     │    │
-    │  │ pháp)         │    │ hoá hiến pháp)│    │
+    │  │ .md (broad     │    │ (detailed      │    │
+    │  │ rules)        │    │ laws)          │    │
     │  └──────┬────────┘    └──────┬────────┘    │
     │         └────────┬───────────┘             │
     │                  ▼                         │
@@ -29,7 +29,7 @@ LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân L
     │  ┌──────────────────────────────────┐     │
     │  │       PRE-JUDICIAL                │     │
     │  │       judicial.md                 │     │
-    │  │       (camera phạt nguội)         │     │
+    │  │       (automated enforcement)      │     │
     │  │                                   │     │
     │  │  • Blocked tools?                 │     │
     │  │  • Dangerous patterns?            │     │
@@ -49,9 +49,9 @@ LawClaw is an autonomous AI agent on Telegram, governed by "Song Quyền Phân L
 
 | Layer | When | What | How | Analogy |
 |-------|------|------|-----|---------|
-| **Constitution** | Before LLM call | Broad immutable rules | Injected into system prompt | Hiến pháp |
-| **Legislative** | Before LLM call | Detailed laws | `laws/*.md` injected into prompt → LLM self-regulates | Luật giao thông |
-| **Pre-Judicial** | Before tool execution | Enforcement | Checks LLM output → auto-blocks violations | Camera phạt nguội |
+| **Constitution** | Before LLM call | Broad immutable rules | Injected into system prompt | National constitution |
+| **Legislative** | Before LLM call | Detailed laws | `laws/*.md` injected into prompt → LLM self-regulates | Traffic laws |
+| **Pre-Judicial** | Before tool execution | Enforcement | Checks LLM output → auto-blocks violations | Traffic cameras |
 | **Agent Loop** | Runtime | Execution | LLM calls tools, loop until done | Citizen going about their day |
 
 **The key insight:** Constitution + Laws guide the LLM's behavior BEFORE it acts (citizen consciousness). Pre-Judicial checks the LLM's OUTPUT before actual execution. No "Executive branch" or police needed — just automated enforcement like traffic cameras.
@@ -105,9 +105,9 @@ All governance lives in the repo root — version-controlled, easy to edit:
 
 ```
 LawClaw/
-├── constitution.md    # Hiến pháp — immutable broad rules (→ system prompt)
-├── judicial.md        # Pre-Tư pháp — blocked tools + dangerous patterns (→ pre-check)
-├── laws/              # Lập pháp — detailed laws (→ system prompt)
+├── constitution.md    # Immutable broad rules (→ system prompt)
+├── judicial.md        # Pre-Judicial — blocked tools + dangerous patterns (→ pre-check)
+├── laws/              # Detailed laws (→ system prompt)
 │   ├── safety.md
 │   ├── privacy.md
 │   └── conduct.md
@@ -204,7 +204,7 @@ SQLite WAL mode. All tables auto-created on startup:
 | `memory` | Key-value store, scoped by namespace |
 | `audit_log` | Every tool call (allowed/blocked) |
 | `cron_jobs` | Scheduled tasks |
-| `skills` | _(deprecated — now in skills/)_ |
+|
 
 Memory namespaces: `user:{chat_id}` for Telegram, `job:{job_id}` for cron.
 
@@ -212,10 +212,10 @@ Memory namespaces: `user:{chat_id}` for Telegram, `job:{job_id}` for cron.
 
 ```
 LawClaw/
-├── constitution.md        # Hiến pháp
-├── judicial.md            # Pre-Tư pháp enforcement rules
+├── constitution.md        # Broad rules (immutable)
+├── judicial.md            # Pre-Judicial enforcement rules
 ├── skills/                # Skill playbooks (how to use tools)
-├── laws/                  # Lập pháp detailed laws
+├── laws/                  # Legislative — detailed laws
 │   ├── safety.md
 │   ├── privacy.md
 │   └── conduct.md
