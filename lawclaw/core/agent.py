@@ -108,9 +108,14 @@ class Agent:
                             parts = session_key.split(":")
                             if len(parts) >= 2:
                                 cron_tool.set_chat_id(parts[1])
+                        # Set memory namespace: cron → job:{id}, telegram → user:{chat_id}
                         memory_tool = self._tools.get("manage_memory")
                         if memory_tool and hasattr(memory_tool, "set_namespace"):
-                            memory_tool.set_namespace(session_key)
+                            parts = session_key.split(":")
+                            if session_key.startswith("cron:") and len(parts) >= 2:
+                                memory_tool.set_namespace(f"job:{parts[1]}")
+                            elif session_key.startswith("telegram:") and len(parts) >= 2:
+                                memory_tool.set_namespace(f"user:{parts[1]}")
                         result_str = await self._tools.execute(tc.name, tc.arguments)
                         tools_used.append(tc.name)
                         logger.debug("Tool '{}' executed, result length={}", tc.name, len(result_str))
