@@ -148,11 +148,20 @@ class Agent:
 
             return final_content
 
-        # Exceeded max iterations
-        fallback = "I reached the maximum number of reasoning steps. Please try a simpler request."
+        # Exceeded max iterations — try to salvage any content from the last response
+        logger.warning("Agent hit max iterations ({}) for session {}", self._config.max_iterations, session_key)
+
+        # Check if the last LLM response had usable content
+        last_content = response.content if response else None  # noqa: F821 — `response` is from the last loop iteration
+        if last_content and last_content.strip():
+            final = last_content.strip()
+            logger.info("Salvaged content from last iteration despite hitting max iterations")
+        else:
+            final = "I reached the maximum number of reasoning steps. Please try a simpler request."
+
         add_message(self._conn, session_key, "user", message)
-        add_message(self._conn, session_key, "assistant", fallback)
-        return fallback
+        add_message(self._conn, session_key, "assistant", final, tools_used=tools_used or None)
+        return final
 
     def _build_system_prompt(self) -> str:
         """Combine constitution + laws + tool list + personality."""

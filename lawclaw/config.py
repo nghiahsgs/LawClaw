@@ -1,11 +1,9 @@
 """Configuration loader for LawClaw.
 
-Priority: ENV vars > config.json > defaults.
-Secrets (API keys, tokens) should go in ~/.lawclaw/.env or ENV vars.
-Non-secret settings go in ~/.lawclaw/config.json.
+Priority: ENV vars > .env file > defaults.
+All config lives in .env (repo root or ~/.lawclaw/.env).
 """
 
-import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,7 +11,6 @@ from pathlib import Path
 from loguru import logger
 
 CONFIG_DIR = Path.home() / ".lawclaw"
-CONFIG_PATH = CONFIG_DIR / "config.json"
 
 
 def _parse_env_file(path: Path) -> None:
@@ -41,10 +38,11 @@ def _load_dotenv() -> None:
 
 @dataclass
 class Config:
-    # Secrets (prefer ENV vars)
+    # Secrets
     openrouter_api_key: str = ""
     zai_api_key: str = ""
     telegram_token: str = ""
+    brave_api_key: str = ""
 
     # LLM
     model: str = "google/gemini-2.5-flash"
@@ -64,54 +62,34 @@ class Config:
 
 
 def load_config() -> Config:
-    """Load config. ENV vars > .env file > config.json > defaults."""
+    """Load config from ENV vars / .env files. No config.json needed."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     # Load .env first so ENV vars are available
     _load_dotenv()
 
-    # Load config.json for non-secret settings
-    data: dict = {}
-    if CONFIG_PATH.exists():
-        data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    else:
-        logger.info("No config found, creating default at {}", CONFIG_PATH)
+    # Parse comma-separated allow list
+    allow_raw = os.environ.get("TELEGRAM_ALLOW_FROM", "")
+    allow_from = [u.strip() for u in allow_raw.split(",") if u.strip()]
 
     config = Config(
-        # Secrets: ENV > config.json
-        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", data.get("openrouter_api_key", "")),
-        zai_api_key=os.environ.get("ZAI_API_KEY", data.get("zai_api_key", "")),
-        telegram_token=os.environ.get("TELEGRAM_TOKEN", data.get("telegram_token", "")),
-        # Non-secret settings from config.json
-        model=os.environ.get("MODEL", data.get("model", "google/gemini-2.5-flash")),
-        temperature=data.get("temperature", 0.7),
-        max_tokens=data.get("max_tokens", 4096),
-        telegram_allow_from=data.get("telegram_allow_from", []),
-        max_iterations=data.get("max_iterations", 15),
-        memory_window=data.get("memory_window", 40),
-        workspace=data.get("workspace", str(CONFIG_DIR / "workspace")),
-        db_path=data.get("db_path", str(CONFIG_DIR / "lawclaw.db")),
+        # Secrets
+        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+        zai_api_key=os.environ.get("ZAI_API_KEY", ""),
+        telegram_token=os.environ.get("TELEGRAM_TOKEN", ""),
+        brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
+        # LLM
+        model=os.environ.get("MODEL", "google/gemini-2.5-flash"),
+        temperature=float(os.environ.get("TEMPERATURE", "0.7")),
+        max_tokens=int(os.environ.get("MAX_TOKENS", "4096")),
+        # Telegram
+        telegram_allow_from=allow_from,
+        # Agent
+        max_iterations=int(os.environ.get("MAX_ITERATIONS", "15")),
+        memory_window=int(os.environ.get("MEMORY_WINDOW", "40")),
+        # Paths
+        workspace=os.environ.get("WORKSPACE", str(CONFIG_DIR / "workspace")),
+        db_path=os.environ.get("DB_PATH", str(CONFIG_DIR / "lawclaw.db")),
     )
 
-    # Write config.json without secrets if it doesn't exist
-    if not CONFIG_PATH.exists():
-        CONFIG_PATH.write_text(
-            json.dumps(_to_dict(config), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
     return config
-
-
-def _to_dict(cfg: Config) -> dict:
-    """Convert config to dict for JSON — secrets excluded."""
-    return {
-        "model": cfg.model,
-        "temperature": cfg.temperature,
-        "max_tokens": cfg.max_tokens,
-        "telegram_allow_from": cfg.telegram_allow_from,
-        "max_iterations": cfg.max_iterations,
-        "memory_window": cfg.memory_window,
-        "workspace": cfg.workspace,
-        "db_path": cfg.db_path,
-    }

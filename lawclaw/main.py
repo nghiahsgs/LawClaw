@@ -133,8 +133,11 @@ async def run_gateway() -> None:
             memory_section = f"\n\nYour persisted memory from previous runs:\n{job_memory}\n"
 
         cron_prompt = (
-            "[SCHEDULED TASK] You are executing an automated cron job. "
-            "Use your tools (exec_cmd, web_search, etc.) if needed to complete the task. "
+            "[SCHEDULED TASK] You are executing an automated cron job.\n"
+            "Your text response will be sent directly to the user's chat — "
+            "just reply with the content, no tool needed to 'send' it.\n"
+            "Only use tools if the task genuinely requires external data (e.g. web_search for prices, "
+            "web_fetch for APIs). For creative/text-only tasks, respond directly WITHOUT calling any tools.\n"
             "Use manage_memory to save any state you need for next run."
             f"{memory_section}\n\nTask: {message}"
         )
