@@ -187,6 +187,12 @@ class Agent:
             parts.append(f"# Available Tools\n\n{tool_list}")
 
         parts.append(
+            f"# Environment\n\n"
+            f"- **Workspace**: `{self._config.workspace}` — all `exec_cmd` commands run here. "
+            f"Clone repos, create files, etc. inside this directory.\n"
+        )
+
+        parts.append(
             "# Personality\n\n"
             "You are LawClaw, a governed AI agent with three governance layers "
             "(Separation of Powers):\n"
