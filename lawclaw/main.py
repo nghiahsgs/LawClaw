@@ -24,6 +24,7 @@ from lawclaw.tools.manage_cron import ManageCronTool
 from lawclaw.tools.manage_memory import ManageMemoryTool, load_memory_for_namespace
 from lawclaw.tools.spawn_subagent import SpawnSubagentTool
 from lawclaw.tools.web_fetch import WebFetchTool
+from lawclaw.tools.chrome_cdp import ChromeCdpTool
 from lawclaw.tools.web_search import WebSearchTool
 
 # Repo root: where governance markdown files live
@@ -36,12 +37,13 @@ def _setup_workspace() -> None:
     (CONFIG_DIR / "workspace").mkdir(exist_ok=True)
 
 
-def _make_base_tools(workspace: str) -> ToolRegistry:
+def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistry:
     """Create base tool registry (used by sub-agents — no spawn)."""
     tools = ToolRegistry()
     tools.register(WebSearchTool())
     tools.register(WebFetchTool())
     tools.register(ExecCmdTool(workspace=workspace))
+    tools.register(ChromeCdpTool(port=chrome_cdp_port))
     return tools
 
 
@@ -69,7 +71,7 @@ def _build_agent(
     cron: CronService | None = None,
 ) -> tuple[Agent, ManageCronTool | None]:
     """Build agent with all tools."""
-    base_tools = _make_base_tools(config.workspace)
+    base_tools = _make_base_tools(config.workspace, config.chrome_cdp_port)
 
     subagent_mgr = SubagentManager(
         config=config, conn=conn,
@@ -77,7 +79,7 @@ def _build_agent(
         tools=base_tools,
     )
 
-    main_tools = _make_base_tools(config.workspace)
+    main_tools = _make_base_tools(config.workspace, config.chrome_cdp_port)
     spawn_tool = SpawnSubagentTool()
     spawn_tool.set_manager(subagent_mgr)
     main_tools.register(spawn_tool)

@@ -54,6 +54,9 @@ class Config:
     max_iterations: int = 15
     memory_window: int = 40
 
+    # Chrome CDP
+    chrome_cdp_port: int = 9222
+
     # Paths
     workspace: str = str(CONFIG_DIR / "workspace")
     db_path: str = str(CONFIG_DIR / "lawclaw.db")
@@ -83,6 +86,8 @@ def load_config() -> Config:
         # Agent
         max_iterations=int(os.environ.get("MAX_ITERATIONS", "15")),
         memory_window=int(os.environ.get("MEMORY_WINDOW", "40")),
+        # Chrome CDP
+        chrome_cdp_port=int(os.environ.get("CHROME_CDP_PORT", "9222")),
         # Paths
         workspace=os.environ.get("WORKSPACE", str(CONFIG_DIR / "workspace")),
         db_path=os.environ.get("DB_PATH", str(CONFIG_DIR / "lawclaw.db")),

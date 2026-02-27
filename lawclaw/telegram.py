@@ -277,6 +277,7 @@ class TelegramBot:
             icons = {
                 "web_search": "🔍", "web_fetch": "🌐", "exec_cmd": "⚙️",
                 "manage_memory": "💾", "manage_cron": "⏰", "spawn_subagent": "🤖",
+                "chrome": "🌐",
             }
             icon = icons.get(tool_name, "🔧")
             # Truncate args for display

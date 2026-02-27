@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.27",
     "python-telegram-bot>=21.0",
     "loguru>=0.7",
+    "websockets>=12.0",
 ]
 
 [project.scripts]
