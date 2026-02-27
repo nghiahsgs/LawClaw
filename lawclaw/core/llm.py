@@ -59,7 +59,7 @@ class LLMClient:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
 
-        logger.debug("LLM call: provider={} model={} messages={}", self._provider, self._model, len(messages))
+        logger.debug("LLM call: model={} messages={}", self._model, len(messages))
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(self._url, headers=self._headers, json=payload)

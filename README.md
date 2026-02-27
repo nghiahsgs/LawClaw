@@ -270,6 +270,33 @@ MODEL=claude-opus-4-local
 
 **Recommended:** `claude-opus-4-local` (Opus 4.6) — best tool calling, reasoning, and instruction-following. Governance layers work significantly better with a smarter model.
 
+## Running with PM2
+
+Both LawClaw and the Claude Max proxy can be managed with PM2. The repo includes `ecosystem.config.js` — **you must update the paths to match your machine** before starting.
+
+```bash
+# 1. Install PM2
+npm install -g pm2
+
+# 2. Edit ecosystem.config.js — update these paths:
+#    - lawclaw script: path to your venv's lawclaw binary
+#    - claude-max-api-proxy cwd: path to the proxy directory
+#
+#    Example (find your lawclaw path):
+#    which lawclaw          # if venv is activated
+#    # or: <your-project>/venv/bin/lawclaw
+
+# 3. Start all services
+pm2 start ecosystem.config.js
+
+# Useful commands
+pm2 status                  # check status
+pm2 logs                    # tail all logs
+pm2 logs lawclaw            # tail lawclaw only
+pm2 restart all             # restart everything
+pm2 stop all                # stop everything
+```
+
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)
