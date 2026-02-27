@@ -74,6 +74,10 @@ lawclaw gateway
 
 ## Configuration
 
+### Why Claude only?
+
+We exclusively use **Claude** (Opus / Sonnet) via a local proxy powered by your existing Claude Max subscription. No third-party API keys needed — no OpenRouter, no Z.AI, no pay-per-token billing. Other models don't follow governance instructions reliably; Claude is the only one that actually respects the constitution + laws well enough for this framework to work.
+
 ### Secrets (`.env`)
 
 ```bash
@@ -87,7 +91,7 @@ MODEL=claude-opus-4-local                  # See model options below
 | `claude-opus-4-local` | Claude Opus 4.6 — best reasoning + tool calling |
 | `claude-sonnet-4-local` | Claude Sonnet 4.6 — faster, lighter |
 
-All models route to the local Claude Max proxy (`localhost:3456`). See [Claude Max Proxy](#claude-max-proxy) for setup.
+All requests go through the local Claude Max proxy (`localhost:3456`). No API key purchase required — just your Claude Max subscription. See [Claude Max Proxy](#claude-max-proxy) for setup.
 
 ### Non-secret settings (`~/.lawclaw/config.json`)
 
@@ -232,7 +236,7 @@ LawClaw/
     │   ├── agent.py       # Agent loop + system prompt
     │   ├── legislative.py # Load constitution + laws
     │   ├── judicial.py    # Pre-Judicial enforcement + audit
-    │   ├── llm.py         # Multi-provider LLM client
+    │   ├── llm.py         # Claude LLM client (via local proxy)
     │   ├── tools.py       # Tool registry + base class
     │   ├── subagent.py    # Sub-agent spawner
     │   └── cron.py        # Cron scheduler
@@ -247,7 +251,7 @@ LawClaw/
 
 ## Claude Max Proxy
 
-LawClaw requires a Claude Max subscription ($200/month) and the local proxy to run:
+LawClaw uses your existing **Claude Max subscription** ($200/month) — no separate API keys to buy. The included proxy converts your subscription into an OpenAI-compatible API server locally.
 
 ```bash
 # 1. Install Claude Code CLI and authenticate
@@ -264,14 +268,12 @@ npm start
 MODEL=claude-opus-4-local
 ```
 
-The proxy wraps Claude Code CLI as an OpenAI-compatible API server at `localhost:3456`.
-
-**Recommended:** Use `claude-opus-4-local` (Opus 4.6) — best tool calling, reasoning, and instruction-following. Governance layers work significantly better with a smarter model.
+**Recommended:** `claude-opus-4-local` (Opus 4.6) — best tool calling, reasoning, and instruction-following. Governance layers work significantly better with a smarter model.
 
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)
-- **LLM**: Claude Max proxy (localhost:3456, requires Claude Max subscription)
+- **LLM**: Claude only — via local proxy (no API key needed, uses Claude Max subscription)
 - **Database**: SQLite (WAL mode, auto-migration)
 - **Telegram**: python-telegram-bot
 - **HTTP**: httpx (async)
