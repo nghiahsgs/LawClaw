@@ -192,21 +192,29 @@ class JudicialBranch:
         # 3. Check file paths are within workspace (only for exec_cmd)
         if self._workspace is not None and tool_name == "exec_cmd":
             for value in self._flatten_values(arguments):
-                if isinstance(value, str) and ("/" in value or "\\" in value):
-                    if value.startswith(("http://", "https://", "ftp://")):
+                if not isinstance(value, str) or ("/" not in value and "\\" not in value):
+                    continue
+                # Extract path-like tokens from the string (handles full commands)
+                for token in value.split():
+                    if "/" not in token and "\\" not in token:
                         continue
-                    # Skip strings that contain URLs (e.g. curl commands)
-                    if "http://" in value or "https://" in value:
+                    # Skip URLs and git SSH remotes
+                    if token.startswith(("http://", "https://", "ftp://", "git@")):
                         continue
-                    if len(value) > 500:
+                    if "http://" in token or "https://" in token:
+                        continue
+                    if len(token) > 500:
+                        continue
+                    # Only check tokens that look like absolute paths
+                    if not token.startswith(("/", "~")):
                         continue
                     try:
-                        candidate = Path(value).resolve()
-                        if candidate.is_absolute():
+                        resolved = Path(token).expanduser().resolve()
+                        if resolved.is_absolute():
                             try:
-                                candidate.relative_to(self._workspace)
+                                resolved.relative_to(self._workspace)
                             except ValueError:
-                                reason = f"Path '{value[:200]}' is outside the workspace directory."
+                                reason = f"Path '{token[:200]}' is outside the workspace directory."
                                 logger.warning("BLOCKED — {}", reason)
                                 return Verdict(allowed=False, reason=reason)
                     except (OSError, ValueError):
