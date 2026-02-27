@@ -249,6 +249,24 @@ LawClaw/
         └── manage_memory.py
 ```
 
+## Chrome Browser Control
+
+LawClaw can control a Chrome browser via CDP (Chrome DevTools Protocol) — navigate pages, click, type, take screenshots, run JavaScript, and more.
+
+```bash
+# Start Chrome with CDP (separate profile, won't affect your personal Chrome)
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --no-first-run \
+  --user-data-dir=$HOME/.lawclaw/chrome-profile
+```
+
+Add `--headless` if you don't need to see the browser window.
+
+The `chrome` tool connects directly to CDP over WebSocket — no MCP, no Playwright, no extra layers. The agent knows how to use it via the `skills/chrome.md` playbook.
+
+Use `/ban chrome` to disable browser control, `/approve chrome` to re-enable.
+
 ## Claude Max Proxy
 
 LawClaw uses your existing **Claude Max subscription** ($200/month) — no separate API keys to buy. The included proxy converts your subscription into an OpenAI-compatible API server locally.
