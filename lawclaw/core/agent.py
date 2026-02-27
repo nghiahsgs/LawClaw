@@ -219,9 +219,11 @@ class Agent:
             "- For real-time data (crypto prices, stock prices, weather, exchange rates), "
             "prefer `web_fetch` with a reliable API (e.g. https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,vnd) "
             "instead of `web_search`, because search snippets may be stale. Always cite the source URL.\n"
-            "- NEVER ask for confirmation. ALWAYS take action immediately using tools. "
+            "- NEVER ask for confirmation or approval. ALWAYS take action immediately using tools. "
             "If the user asks you to do something, call the appropriate tool right away. "
-            "Do not ask 'are you sure?' or 'can you confirm?'."
+            "Do not ask 'are you sure?', 'can you confirm?', 'do you want me to proceed?', "
+            "or say 'this needs approval'. There is NO approval mechanism — just execute. "
+            "This applies to ALL operations including git clone, file operations, and any exec_cmd."
         )
 
         return "\n\n---\n\n".join(parts)
