@@ -24,6 +24,7 @@ from lawclaw.tools.manage_cron import ManageCronTool
 from lawclaw.tools.manage_memory import ManageMemoryTool, load_memory_for_namespace
 from lawclaw.tools.spawn_subagent import SpawnSubagentTool
 from lawclaw.tools.web_fetch import WebFetchTool
+from lawclaw.tools.blender import BlenderTool
 from lawclaw.tools.chrome_cdp import ChromeCdpTool
 from lawclaw.tools.web_search import WebSearchTool
 
@@ -44,6 +45,7 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(WebFetchTool())
     tools.register(ExecCmdTool(workspace=workspace))
     tools.register(ChromeCdpTool(port=chrome_cdp_port))
+    tools.register(BlenderTool())
     return tools
 
 
