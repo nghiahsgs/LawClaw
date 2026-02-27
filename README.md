@@ -77,24 +77,17 @@ lawclaw gateway
 ### Secrets (`.env`)
 
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-your-key     # OpenRouter models
-ZAI_API_KEY=your-zai-key                   # Z.AI (Zhipu) models
 TELEGRAM_TOKEN=123456:ABC-token
-MODEL=claude-opus-4-local                  # See model options below
 BRAVE_API_KEY=your-brave-key
+MODEL=claude-opus-4-local                  # See model options below
 ```
 
-Provider auto-detected from model name:
+| Model | Description |
+|-------|-------------|
+| `claude-opus-4-local` | Claude Opus 4.6 — best reasoning + tool calling |
+| `claude-sonnet-4-local` | Claude Sonnet 4.6 — faster, lighter |
 
-| Model | Provider | Cost |
-|-------|----------|------|
-| `claude-opus-4-local` | Claude Max proxy (localhost:3456) | Free (Max subscription) |
-| `claude-sonnet-4-local` | Claude Max proxy (localhost:3456) | Free (Max subscription) |
-| `glm-4.7` | Z.AI | Cheap |
-| `anthropic/claude-sonnet-4-6` | OpenRouter | Pay per token |
-| `google/gemini-2.5-flash` | OpenRouter | Cheap |
-
-**Suffix `-local`** routes to a local Claude Max proxy. See [Claude Max Proxy](#claude-max-proxy) for setup.
+All models route to the local Claude Max proxy (`localhost:3456`). See [Claude Max Proxy](#claude-max-proxy) for setup.
 
 ### Non-secret settings (`~/.lawclaw/config.json`)
 
@@ -167,7 +160,7 @@ User (Telegram)
 Agent.process(message)
   ├── 1. Load history from DB
   ├── 2. Build system prompt: Time + Constitution + Laws + Skills + Tools
-  ├── 3. LLM call (OpenRouter or Z.AI)
+  ├── 3. LLM call (Claude Max proxy)
   │
   ▼
 LLM response: text OR tool_calls
@@ -227,6 +220,7 @@ LawClaw/
 │   ├── safety.md
 │   ├── privacy.md
 │   └── conduct.md
+├── claude-max-api-proxy/  # Local Claude Max proxy server
 ├── .env.example
 ├── pyproject.toml
 └── lawclaw/
@@ -253,15 +247,14 @@ LawClaw/
 
 ## Claude Max Proxy
 
-If you have a Claude Max subscription ($200/month), you can run Claude Opus/Sonnet for free via a local proxy:
+LawClaw requires a Claude Max subscription ($200/month) and the local proxy to run:
 
 ```bash
 # 1. Install Claude Code CLI and authenticate
 npm install -g @anthropic-ai/claude-code
 claude auth login
 
-# 2. Clone and start the proxy
-git clone https://github.com/atalovesyou/claude-max-api-proxy.git
+# 2. Start the proxy (included in this repo)
 cd claude-max-api-proxy
 npm install && npm run build
 npm start
@@ -271,14 +264,14 @@ npm start
 MODEL=claude-opus-4-local
 ```
 
-The proxy wraps Claude Code CLI as an OpenAI-compatible API server. LawClaw auto-detects the `-local` suffix and routes requests to `localhost:3456`.
+The proxy wraps Claude Code CLI as an OpenAI-compatible API server at `localhost:3456`.
 
-**Recommended:** If you have Claude Max, use `claude-opus-4-local` (Opus 4.6). It has the best tool calling, reasoning, and instruction-following of any model — the governance layers work significantly better with a smarter model.
+**Recommended:** Use `claude-opus-4-local` (Opus 4.6) — best tool calling, reasoning, and instruction-following. Governance layers work significantly better with a smarter model.
 
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)
-- **LLM**: OpenRouter, Z.AI, or Claude Max proxy (auto-detected from model name)
+- **LLM**: Claude Max proxy (localhost:3456, requires Claude Max subscription)
 - **Database**: SQLite (WAL mode, auto-migration)
 - **Telegram**: python-telegram-bot
 - **HTTP**: httpx (async)

@@ -1,9 +1,7 @@
-"""Multi-provider LLM client for LawClaw.
+"""LLM client for LawClaw — Claude Max proxy only.
 
-Provider auto-detected from model name:
-  - *-local  → Claude Max proxy at localhost:3456
-  - glm-*    → Z.AI (Zhipu AI)
-  - else     → OpenRouter
+All requests go to the local Claude Max proxy at localhost:3456.
+Requires: claude-max-api-proxy running locally + Claude Max subscription.
 """
 
 from __future__ import annotations
@@ -17,9 +15,6 @@ from loguru import logger
 
 from lawclaw.config import Config
 
-# Provider endpoints
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-ZAI_URL = "https://api.z.ai/api/paas/v4/chat/completions"
 CLAUDE_PROXY_URL = "http://127.0.0.1:3456/v1/chat/completions"
 
 
@@ -37,51 +32,15 @@ class LLMResponse:
     finish_reason: str = "stop"
 
 
-def _detect_provider(model: str) -> str:
-    """Auto-detect provider from model name.
-
-    Suffix '-local' → Claude Max proxy (e.g. claude-opus-4-local).
-    This avoids collision with OpenRouter's claude-opus-4.
-    """
-    lower = model.lower()
-    if lower.endswith("-local"):
-        return "claude_proxy"
-    if lower.startswith("glm-") or lower.startswith("z.ai/"):
-        return "zai"
-    return "openrouter"
-
-
 class LLMClient:
     def __init__(self, config: Config) -> None:
         self._config = config
-        self._provider = _detect_provider(config.model)
+        self._url = CLAUDE_PROXY_URL
+        self._headers = {"Content-Type": "application/json"}
+        # Strip '-local' suffix if present → "claude-opus-4-local" becomes "claude-opus-4"
+        self._model = config.model.removesuffix("-local").removesuffix("-LOCAL")
 
-        if self._provider == "claude_proxy":
-            self._url = CLAUDE_PROXY_URL
-            self._headers = {
-                "Content-Type": "application/json",
-            }
-            # Strip '-local' suffix → "claude-opus-4-local" becomes "claude-opus-4"
-            self._model = config.model.removesuffix("-local").removesuffix("-LOCAL")
-        elif self._provider == "zai":
-            self._url = ZAI_URL
-            self._headers = {
-                "Authorization": f"Bearer {config.zai_api_key}",
-                "Content-Type": "application/json",
-            }
-            # Strip provider prefix if present (e.g. "z.ai/glm-4.7" → "glm-4.7")
-            self._model = config.model.split("/", 1)[-1] if "/" in config.model else config.model
-        else:
-            self._url = OPENROUTER_URL
-            self._headers = {
-                "Authorization": f"Bearer {config.openrouter_api_key}",
-                "HTTP-Referer": "https://github.com/lawclaw",
-                "X-Title": "LawClaw",
-                "Content-Type": "application/json",
-            }
-            self._model = config.model
-
-        logger.info("LLM provider: {} | model: {}", self._provider, self._model)
+        logger.info("LLM model: {} | proxy: {}", self._model, self._url)
 
     async def chat(
         self,

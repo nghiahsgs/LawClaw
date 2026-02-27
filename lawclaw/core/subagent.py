@@ -115,8 +115,6 @@ class SubagentManager:
 
         # Use a limited config for subagents
         sub_config = Config(
-            openrouter_api_key=self._config.openrouter_api_key,
-            zai_api_key=self._config.zai_api_key,
             model=self._config.model,
             temperature=self._config.temperature,
             max_tokens=self._config.max_tokens,

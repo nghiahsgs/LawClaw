@@ -45,7 +45,7 @@ class ExecCmdTool(Tool):
 
         env = {**os.environ}
         # Strip sensitive vars
-        for key in ("OPENROUTER_API_KEY", "BRAVE_API_KEY", "TELEGRAM_TOKEN"):
+        for key in ("BRAVE_API_KEY", "TELEGRAM_TOKEN"):
             env.pop(key, None)
 
         try:

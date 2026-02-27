@@ -39,13 +39,11 @@ def _load_dotenv() -> None:
 @dataclass
 class Config:
     # Secrets
-    openrouter_api_key: str = ""
-    zai_api_key: str = ""
     telegram_token: str = ""
     brave_api_key: str = ""
 
-    # LLM
-    model: str = "google/gemini-2.5-flash"
+    # LLM (Claude Max proxy only)
+    model: str = "claude-opus-4-local"
     temperature: float = 0.7
     max_tokens: int = 4096
 
@@ -74,12 +72,10 @@ def load_config() -> Config:
 
     config = Config(
         # Secrets
-        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
-        zai_api_key=os.environ.get("ZAI_API_KEY", ""),
         telegram_token=os.environ.get("TELEGRAM_TOKEN", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
-        # LLM
-        model=os.environ.get("MODEL", "google/gemini-2.5-flash"),
+        # LLM (Claude Max proxy only)
+        model=os.environ.get("MODEL", "claude-opus-4-local"),
         temperature=float(os.environ.get("TEMPERATURE", "0.7")),
         max_tokens=int(os.environ.get("MAX_TOKENS", "4096")),
         # Telegram
