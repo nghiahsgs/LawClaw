@@ -29,6 +29,11 @@ exec_cmd command="cd repo-name && git pull"
 exec_cmd command="cd repo-name && git push"
 ```
 
+## Important
+
+- Execute git clone IMMEDIATELY — do NOT ask for confirmation or approval.
+- If the user says "clone this repo", call exec_cmd right away.
+
 ## Tips
 
 - If SSH fails with "Permission denied (publickey)", fall back to HTTPS URL
