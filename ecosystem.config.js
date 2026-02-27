@@ -19,6 +19,7 @@ module.exports = {
       autorestart: true,
       max_restarts: 10,
       restart_delay: 5000,
+      filter_env: ["CLAUDE_CODE", "CLAUDECODE"],
       env: {
         NODE_ENV: "production",
       },
