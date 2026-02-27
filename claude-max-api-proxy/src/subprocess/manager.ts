@@ -35,7 +35,7 @@ export interface SubprocessEvents {
   raw: (line: string) => void;
 }
 
-const DEFAULT_TIMEOUT = 300000; // 5 minutes
+const DEFAULT_TIMEOUT = 600000; // 10 minutes
 
 export class ClaudeSubprocess extends EventEmitter {
   private process: ChildProcess | null = null;
