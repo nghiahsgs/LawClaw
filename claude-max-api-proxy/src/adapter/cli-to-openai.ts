@@ -65,19 +65,49 @@ export function createDoneChunk(requestId: string, model: string): OpenAIChatChu
 /**
  * Parse tool_calls JSON from Claude's text response.
  * Looks for ```json blocks or raw JSON containing {"tool_calls": [...]}
+ * Uses multiple strategies to handle various Claude output formats.
  */
 export function parseToolCalls(text: string): {
   toolCalls: OpenAIToolCall[] | null;
   remainingText: string;
 } {
-  // Try to extract JSON from ```json code blocks
+  // Strategy 1: Extract from ```json code blocks (greedy to handle nested braces)
   const codeBlockMatch = text.match(/```json\s*\n?([\s\S]*?)\n?\s*```/);
-  const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : text.trim();
+  if (codeBlockMatch) {
+    const result = tryParseToolCallsJson(codeBlockMatch[1].trim());
+    if (result) {
+      const remaining = text.replace(codeBlockMatch[0], "").trim();
+      return { toolCalls: result, remainingText: remaining };
+    }
+  }
 
+  // Strategy 2: Extract raw JSON object containing "tool_calls" (no code block)
+  const rawJsonMatch = text.match(/(\{[\s\S]*"tool_calls"\s*:\s*\[[\s\S]*\][\s\S]*\})/);
+  if (rawJsonMatch) {
+    const result = tryParseToolCallsJson(rawJsonMatch[1].trim());
+    if (result) {
+      const remaining = text.replace(rawJsonMatch[0], "").trim();
+      return { toolCalls: result, remainingText: remaining };
+    }
+  }
+
+  // Strategy 3: Try parsing the entire text as JSON (original fallback)
+  const result = tryParseToolCallsJson(text.trim());
+  if (result) {
+    return { toolCalls: result, remainingText: "" };
+  }
+
+  return { toolCalls: null, remainingText: text };
+}
+
+/**
+ * Try to parse a JSON string as tool_calls. Returns parsed tool calls or null.
+ */
+function tryParseToolCallsJson(jsonStr: string): OpenAIToolCall[] | null {
   try {
     const parsed = JSON.parse(jsonStr);
     if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
-      const toolCalls: OpenAIToolCall[] = parsed.tool_calls.map(
+      return parsed.tool_calls.map(
         (tc: { name: string; arguments: Record<string, unknown> }, i: number) => ({
           id: `call_${Date.now()}_${i}`,
           type: "function" as const,
@@ -87,17 +117,11 @@ export function parseToolCalls(text: string): {
           },
         })
       );
-      // Remove the JSON block from text
-      const remaining = codeBlockMatch
-        ? text.replace(codeBlockMatch[0], "").trim()
-        : "";
-      return { toolCalls, remainingText: remaining };
     }
   } catch {
-    // Not valid JSON — treat as regular text
+    // Not valid JSON
   }
-
-  return { toolCalls: null, remainingText: text };
+  return null;
 }
 
 /**

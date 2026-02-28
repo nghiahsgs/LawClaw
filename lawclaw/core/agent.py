@@ -136,6 +136,9 @@ class Agent:
             # No tool calls — final response
             final_content = response.content or ""
 
+            # Safety: detect leaked raw tool_calls JSON that proxy failed to parse
+            final_content = self._strip_leaked_tool_json(final_content)
+
             # 4. Persist user + assistant messages
             add_message(self._conn, session_key, "user", message)
             add_message(
@@ -162,6 +165,35 @@ class Agent:
         add_message(self._conn, session_key, "user", message)
         add_message(self._conn, session_key, "assistant", final, tools_used=tools_used or None)
         return final
+
+    @staticmethod
+    def _strip_leaked_tool_json(text: str) -> str:
+        """Remove raw tool_calls JSON that leaked through the proxy parser.
+
+        Sometimes the LLM returns tool_calls JSON in the content field when
+        the proxy fails to parse it.  We strip it here so raw JSON is never
+        sent to the user.
+        """
+        import re
+
+        if '"tool_calls"' not in text:
+            return text
+
+        # Strip ```json {...tool_calls...} ``` blocks
+        cleaned = re.sub(
+            r'```json\s*\n?\s*\{[^}]*"tool_calls"\s*:\s*\[[\s\S]*?\]\s*\}\s*\n?\s*```',
+            "", text,
+        )
+        # Strip bare JSON objects with tool_calls
+        cleaned = re.sub(
+            r'\{[^}]*"tool_calls"\s*:\s*\[[\s\S]*?\]\s*\}',
+            "", cleaned,
+        )
+        cleaned = cleaned.strip()
+        if not cleaned:
+            logger.warning("Stripped leaked tool_calls JSON from response, no content left")
+            return "I tried to use a tool but encountered an issue. Let me try again."
+        return cleaned
 
     def _build_system_prompt(self) -> str:
         """Combine constitution + laws + tool list + personality."""

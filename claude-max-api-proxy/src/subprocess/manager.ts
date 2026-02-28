@@ -130,9 +130,6 @@ export class ClaudeSubprocess extends EventEmitter {
    * Build CLI arguments array
    */
   private buildArgs(prompt: string, options: SubprocessOptions): string[] {
-    // Default tools: WebSearch + WebFetch for internet access
-    const tools = options.allowedTools ?? ["WebSearch", "WebFetch"];
-
     // NOTE: prompt is passed via stdin (not as arg) because --allowedTools
     // is variadic and would consume the prompt argument
     const args = [
@@ -146,7 +143,7 @@ export class ClaudeSubprocess extends EventEmitter {
       options.model, // Model alias (opus/sonnet/haiku)
       "--no-session-persistence", // Don't save sessions
       "--allowedTools",
-      tools.join(","), // Enable tools (WebSearch, WebFetch, etc.)
+      "", // No tools — Claude is pure LLM brain only; tools are executed by LawClaw's Python agent
     ];
 
     if (options.sessionId) {
