@@ -189,8 +189,9 @@ class JudicialBranch:
                 logger.warning("BLOCKED — {} | pattern: {}", reason, pattern.pattern)
                 return Verdict(allowed=False, reason=reason)
 
-        # 3. Check file paths are within workspace (only for exec_cmd)
-        if self._workspace is not None and tool_name == "exec_cmd":
+        # 3. Check file paths are within workspace (exec_cmd + file tools)
+        _FILE_TOOLS = {"exec_cmd", "read_file", "write_file", "edit_file"}
+        if self._workspace is not None and tool_name in _FILE_TOOLS:
             for value in self._flatten_values(arguments):
                 if not isinstance(value, str) or ("/" not in value and "\\" not in value):
                     continue
