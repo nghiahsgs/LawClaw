@@ -306,6 +306,21 @@ class TelegramBot:
 
         try:
             response = await self._agent.process(message=text, session_key=key, on_progress=_on_progress)
+
+            # Send queued file attachments before text response
+            sf_tool = self._agent._tools.get("send_file")
+            if sf_tool and hasattr(sf_tool, "collect"):
+                for att in sf_tool.collect():
+                    try:
+                        with open(att["path"], "rb") as f:
+                            if att.get("kind") == "photo":
+                                await update.message.reply_photo(photo=f, caption=att.get("caption") or None)
+                            else:
+                                await update.message.reply_document(document=f, caption=att.get("caption") or None)
+                    except Exception as e:
+                        logger.error("Failed to send attachment: {}", e)
+                        await update.message.reply_text(f"⚠️ Failed to send file: {att.get('path', '?')}")
+
             if response:
                 # Telegram has 4096 char limit — split if needed
                 for i in range(0, len(response), 4000):

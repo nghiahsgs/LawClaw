@@ -27,6 +27,7 @@ from lawclaw.tools.web_fetch import WebFetchTool
 from lawclaw.tools.blender import BlenderTool
 from lawclaw.tools.chrome_cdp import ChromeCdpTool
 from lawclaw.tools.file_ops import EditFileTool, ReadFileTool, WriteFileTool
+from lawclaw.tools.send_file import SendFileTool
 from lawclaw.tools.web_search import WebSearchTool
 
 # Repo root: where governance markdown files live
@@ -50,6 +51,7 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(ReadFileTool(workspace=workspace))
     tools.register(WriteFileTool(workspace=workspace))
     tools.register(EditFileTool(workspace=workspace))
+    tools.register(SendFileTool(workspace=workspace))
     return tools
 
 
@@ -150,11 +152,26 @@ async def run_gateway() -> None:
             f"{memory_section}\n\nTask: {message}"
         )
         response = await agent.process(message=cron_prompt, session_key=run_key)
-        if response and chat_id and bot._app:
-            try:
-                await bot._app.bot.send_message(chat_id=int(chat_id), text=response)
-            except Exception as e:
-                logger.error("Failed to send cron result to {}: {}", chat_id, e)
+        if chat_id and bot._app:
+            cid = int(chat_id)
+            # Send queued file attachments
+            sf_tool = agent._tools.get("send_file")
+            if sf_tool and hasattr(sf_tool, "collect"):
+                for att in sf_tool.collect():
+                    try:
+                        with open(att["path"], "rb") as f:
+                            if att.get("kind") == "photo":
+                                await bot._app.bot.send_photo(chat_id=cid, photo=f, caption=att.get("caption") or None)
+                            else:
+                                await bot._app.bot.send_document(chat_id=cid, document=f, caption=att.get("caption") or None)
+                    except Exception as e:
+                        logger.error("Failed to send cron attachment to {}: {}", chat_id, e)
+            # Send text response
+            if response:
+                try:
+                    await bot._app.bot.send_message(chat_id=cid, text=response)
+                except Exception as e:
+                    logger.error("Failed to send cron result to {}: {}", chat_id, e)
         return response
 
     cron.on_job = on_cron_job
