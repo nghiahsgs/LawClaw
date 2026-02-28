@@ -61,7 +61,7 @@ class LLMClient:
 
         logger.debug("LLM call: model={} messages={}", self._model, len(messages))
 
-        async with httpx.AsyncClient(timeout=600.0) as client:
+        async with httpx.AsyncClient(timeout=1800.0) as client:
             resp = await client.post(self._url, headers=self._headers, json=payload)
             if resp.status_code != 200:
                 logger.error("LLM error {}: {}", resp.status_code, resp.text[:500])

@@ -316,8 +316,9 @@ class TelegramBot:
                         # Fallback to plain text if Markdown parsing fails
                         await update.message.reply_text(chunk)
         except Exception as e:
-            logger.error("Error processing message: {}", e)
-            await update.message.reply_text(f"⚠️ Error: {str(e)[:200]}")
+            logger.error("Error processing message: {}", e, exc_info=True)
+            err_msg = str(e).strip() or type(e).__name__
+            await update.message.reply_text(f"⚠️ Error: {err_msg[:200]}")
         finally:
             typing_active = False
             typing_task.cancel()
