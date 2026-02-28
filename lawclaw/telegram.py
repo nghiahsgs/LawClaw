@@ -50,7 +50,15 @@ class TelegramBot:
             logger.error("Telegram token not configured")
             return
 
-        self._app = Application.builder().token(self._config.telegram_token).build()
+        self._app = (
+            Application.builder()
+            .token(self._config.telegram_token)
+            .read_timeout(60)
+            .write_timeout(60)
+            .connect_timeout(30)
+            .pool_timeout(30)
+            .build()
+        )
 
         # Register commands
         self._app.add_handler(CommandHandler("start", self._on_start))
