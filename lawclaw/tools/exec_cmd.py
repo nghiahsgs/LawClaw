@@ -27,7 +27,7 @@ class ExecCmdTool(Tool):
             },
             "timeout": {
                 "type": "integer",
-                "description": "Timeout in seconds (default 30, max 120).",
+                "description": "Timeout in seconds (default 30, max 1800).",
                 "default": 30,
             },
         },
@@ -38,7 +38,7 @@ class ExecCmdTool(Tool):
         self._workspace = Path(workspace).resolve() if workspace else None
 
     async def execute(self, command: str, timeout: int = 30) -> str:  # type: ignore[override]
-        timeout = max(1, min(timeout, 120))
+        timeout = max(1, min(timeout, 1800))
         cwd = str(self._workspace) if self._workspace else None
 
         logger.info("exec_cmd: command='{}' timeout={} cwd={}", command[:100], timeout, cwd)
