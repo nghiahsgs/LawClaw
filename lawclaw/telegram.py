@@ -3,9 +3,66 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import sqlite3
 
 from loguru import logger
+
+
+def _convert_tables(text: str) -> str:
+    """Convert markdown tables to monospace code blocks for Telegram."""
+    lines = text.split("\n")
+    result: list[str] = []
+    i = 0
+
+    while i < len(lines):
+        if lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+            # Collect all consecutive table lines
+            table_lines: list[str] = []
+            while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+                table_lines.append(lines[i])
+                i += 1
+            result.append(_render_table(table_lines))
+        else:
+            result.append(lines[i])
+            i += 1
+
+    return "\n".join(result)
+
+
+def _render_table(table_lines: list[str]) -> str:
+    """Render markdown table lines as ASCII table inside a code block."""
+    rows: list[list[str]] = []
+    for line in table_lines:
+        stripped = line.strip()
+        # Skip separator rows like |---|---|
+        if re.match(r"^\|[\s\-:|]+\|$", stripped):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        rows.append(cells)
+
+    if not rows:
+        return "\n".join(table_lines)
+
+    num_cols = max(len(r) for r in rows)
+    widths = [0] * num_cols
+    for row in rows:
+        for j, cell in enumerate(row[:num_cols]):
+            widths[j] = max(widths[j], len(cell))
+
+    top    = "┌─" + "─┬─".join("─" * w for w in widths) + "─┐"
+    sep    = "├─" + "─┼─".join("─" * w for w in widths) + "─┤"
+    bottom = "└─" + "─┴─".join("─" * w for w in widths) + "─┘"
+
+    formatted: list[str] = [top]
+    for idx, row in enumerate(rows):
+        cells = [row[j].ljust(widths[j]) if j < len(row) else " " * widths[j] for j in range(num_cols)]
+        formatted.append("│ " + " │ ".join(cells) + " │")
+        if idx == 0 and len(rows) > 1:
+            formatted.append(sep)
+    formatted.append(bottom)
+
+    return "```\n" + "\n".join(formatted) + "\n```"
 from telegram import BotCommand, Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -322,6 +379,8 @@ class TelegramBot:
                         await update.message.reply_text(f"⚠️ Failed to send file: {att.get('path', '?')}")
 
             if response:
+                # Convert markdown tables to ASCII code blocks (Telegram doesn't support tables)
+                response = _convert_tables(response)
                 # Telegram has 4096 char limit — split if needed
                 for i in range(0, len(response), 4000):
                     chunk = response[i:i + 4000]
