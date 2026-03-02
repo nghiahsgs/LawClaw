@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import re
 import sqlite3
 
@@ -127,8 +128,9 @@ class TelegramBot:
         self._app.add_handler(CommandHandler("jobs", self._on_jobs))
         self._app.add_handler(CommandHandler("help", self._on_help))
 
-        # Message handler
+        # Message handlers
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_message))
+        self._app.add_handler(MessageHandler(filters.PHOTO, self._on_photo))
 
         # Set bot commands menu
         await self._app.bot.set_my_commands([
@@ -308,16 +310,41 @@ class TelegramBot:
             parse_mode="Markdown",
         )
 
-    # -- Message handler --
+    # -- Message handlers --
 
     async def _on_message(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
-
         text = update.message.text or ""
         if not text.strip():
             return
+        await self._handle_message(update, text)
 
+    async def _on_photo(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        caption = update.message.caption or "What's in this image?"
+        # Download the highest resolution photo
+        photo = update.message.photo[-1]  # last = largest
+        try:
+            file = await photo.get_file()
+            img_bytes = await file.download_as_bytearray()
+            b64 = base64.b64encode(bytes(img_bytes)).decode()
+            # Detect mime type from file path
+            ext = (file.file_path or "").rsplit(".", 1)[-1].lower()
+            mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                    "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/jpeg")
+            image_url = f"data:{mime};base64,{b64}"
+            logger.info("Photo received: {}KB, mime={}", len(img_bytes) // 1024, mime)
+        except Exception as e:
+            logger.error("Failed to download photo: {}", e)
+            await update.message.reply_text("⚠️ Failed to download image.")
+            return
+        await self._handle_message(update, caption, images=[image_url])
+
+    async def _handle_message(
+        self, update: Update, text: str, images: list[str] | None = None,
+    ) -> None:
         chat_id = update.effective_chat.id
         key = self._session_key(chat_id)
 
@@ -366,7 +393,10 @@ class TelegramBot:
             # so the bot stays responsive for other messages
             try:
                 response = await asyncio.wait_for(
-                    self._agent.process(message=text, session_key=key, on_progress=_on_progress),
+                    self._agent.process(
+                        message=text, session_key=key,
+                        on_progress=_on_progress, images=images,
+                    ),
                     timeout=1200.0,
                 )
             except asyncio.TimeoutError:

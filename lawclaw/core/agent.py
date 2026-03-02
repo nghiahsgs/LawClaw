@@ -44,11 +44,13 @@ class Agent:
         message: str,
         session_key: str,
         on_progress: Callable[[str, str, str], None] | None = None,
+        images: list[str] | None = None,
     ) -> str:
         """
         Process a user message through the governed agent loop.
 
         on_progress(tool_name, args_preview, result_preview) is called after each tool execution.
+        images: optional list of base64 data URIs (e.g. "data:image/jpeg;base64,...")
         Returns the final assistant response string.
         """
         # 1. Load history
@@ -58,7 +60,18 @@ class Agent:
         system_prompt = self._build_system_prompt()
         messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
-        messages.append({"role": "user", "content": message})
+
+        # Build user message — multimodal if images are present
+        if images:
+            content_parts: list[dict[str, Any]] = [{"type": "text", "text": message}]
+            for img_url in images:
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {"url": img_url},
+                })
+            messages.append({"role": "user", "content": content_parts})
+        else:
+            messages.append({"role": "user", "content": message})
 
         tool_defs = self._tools.get_definitions()
         tools_used: list[str] = []
