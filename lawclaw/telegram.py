@@ -362,17 +362,17 @@ class TelegramBot:
             asyncio.create_task(_send())
 
         try:
-            # Global timeout: if agent hangs (stuck tool), abort after 10 minutes
+            # Global timeout: if agent hangs (stuck tool), abort after 20 minutes
             # so the bot stays responsive for other messages
             try:
                 response = await asyncio.wait_for(
                     self._agent.process(message=text, session_key=key, on_progress=_on_progress),
-                    timeout=600.0,
+                    timeout=1200.0,
                 )
             except asyncio.TimeoutError:
-                logger.error("Agent process timed out after 600s for session {}", key)
+                logger.error("Agent process timed out after 1200s for session {}", key)
                 await update.message.reply_text(
-                    "⚠️ Request timed out after 10 minutes. Please try a simpler request."
+                    "⚠️ Request timed out after 20 minutes. Please try a simpler request."
                 )
                 return
 
