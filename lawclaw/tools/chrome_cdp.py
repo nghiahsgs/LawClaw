@@ -7,7 +7,10 @@ with --remote-debugging-port (default 9222).
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -242,8 +245,9 @@ class ChromeCdpTool(Tool):
         "required": ["action"],
     }
 
-    def __init__(self, port: int = 9222) -> None:
+    def __init__(self, port: int = 9222, workspace: str = "") -> None:
         self._cdp = CdpClient(port=port)
+        self._workspace = Path(workspace) if workspace else None
 
     async def execute(  # type: ignore[override]
         self,
@@ -401,6 +405,16 @@ class ChromeCdpTool(Tool):
             b64 = await cdp.screenshot()
             if not b64:
                 return "Error: Screenshot returned empty data."
+            # Auto-save to workspace as a PNG file
+            if self._workspace:
+                self._workspace.mkdir(parents=True, exist_ok=True)
+                ts = int(time.time())
+                filename = f"screenshot_{ts}.png"
+                filepath = self._workspace / filename
+                filepath.write_bytes(base64.b64decode(b64))
+                logger.info("Screenshot saved to {}", filepath)
+                return f"Screenshot saved to workspace: {filename}\nFull path: {filepath}\nUse send_file to deliver it to the user."
+            # Fallback: return base64 if no workspace configured
             return f"[SCREENSHOT:base64png]{b64}"
 
         if action == "evaluate":

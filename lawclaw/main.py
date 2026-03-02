@@ -46,7 +46,7 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(WebSearchTool())
     tools.register(WebFetchTool())
     tools.register(ExecCmdTool(workspace=workspace))
-    tools.register(ChromeCdpTool(port=chrome_cdp_port))
+    tools.register(ChromeCdpTool(port=chrome_cdp_port, workspace=workspace))
     tools.register(BlenderTool())
     tools.register(ReadFileTool(workspace=workspace))
     tools.register(WriteFileTool(workspace=workspace))

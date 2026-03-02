@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import signal
 from pathlib import Path
 from typing import Any
 
@@ -49,20 +50,31 @@ class ExecCmdTool(Tool):
             env.pop(key, None)
 
         try:
+            # start_new_session=True creates a new process group so we can
+            # kill the entire tree (including background children like `npm run dev &`)
             proc = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
                 env=env,
+                start_new_session=True,
             )
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
                     proc.communicate(), timeout=float(timeout)
                 )
             except asyncio.TimeoutError:
-                proc.kill()
-                await proc.communicate()
+                # Kill the entire process group, not just the shell
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    proc.kill()
+                # Secondary timeout on post-kill cleanup to avoid hanging forever
+                try:
+                    await asyncio.wait_for(proc.communicate(), timeout=5.0)
+                except (asyncio.TimeoutError, Exception):
+                    pass
                 return f"Command timed out after {timeout}s: {command}"
 
             stdout = stdout_bytes.decode(errors="replace").rstrip()

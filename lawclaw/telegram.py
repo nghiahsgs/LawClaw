@@ -362,7 +362,19 @@ class TelegramBot:
             asyncio.create_task(_send())
 
         try:
-            response = await self._agent.process(message=text, session_key=key, on_progress=_on_progress)
+            # Global timeout: if agent hangs (stuck tool), abort after 10 minutes
+            # so the bot stays responsive for other messages
+            try:
+                response = await asyncio.wait_for(
+                    self._agent.process(message=text, session_key=key, on_progress=_on_progress),
+                    timeout=600.0,
+                )
+            except asyncio.TimeoutError:
+                logger.error("Agent process timed out after 600s for session {}", key)
+                await update.message.reply_text(
+                    "⚠️ Request timed out after 10 minutes. Please try a simpler request."
+                )
+                return
 
             # Send queued file attachments before text response
             sf_tool = self._agent._tools.get("send_file")

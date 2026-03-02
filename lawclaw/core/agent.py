@@ -253,6 +253,8 @@ class Agent:
             "- Use `send_file` to send files or images from the workspace directly to the user's Telegram chat. "
             "When the user asks to see a file or image, use send_file instead of just describing it or showing the path. "
             "Images (jpg, png, gif, webp) are sent as photos; other files as documents.\n"
+            "- When you take a screenshot with `chrome action=\"screenshot\"`, the PNG file is auto-saved to the workspace. "
+            "To deliver it to the user, immediately call `send_file` with the filename returned by the screenshot action.\n"
             "- Use tools directly (exec_cmd, web_fetch) for simple one-off tasks.\n"
             "- For web searches, **always prefer `chrome`** (Google Search via CDP) over `web_search` (Brave). "
             "Use `chrome action=\"navigate\" url=\"https://www.google.com/search?q=...\"` then `chrome action=\"get_content\"`. "

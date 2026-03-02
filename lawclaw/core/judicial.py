@@ -169,6 +169,14 @@ class JudicialBranch:
 
         self._judicial_path.write_text("\n".join(new_lines), encoding="utf-8")
 
+    # Safe system paths that should never be blocked by the workspace sandbox
+    _SAFE_SYSTEM_PATHS = frozenset({
+        "/dev/null", "/dev/zero", "/dev/urandom", "/dev/random",
+        "/dev/stdin", "/dev/stdout", "/dev/stderr",
+        "/dev/fd",
+        "/tmp", "/var/tmp",
+    })
+
     # -- Pre-check engine --
 
     def pre_check(self, tool_name: str, arguments: dict[str, Any]) -> Verdict:
@@ -208,6 +216,11 @@ class JudicialBranch:
                         continue
                     # Only check tokens that look like absolute paths
                     if not token.startswith(("/", "~")):
+                        continue
+                    # Skip safe system paths (e.g. /dev/null, /tmp)
+                    if token in self._SAFE_SYSTEM_PATHS or any(
+                        token.startswith(p + "/") for p in self._SAFE_SYSTEM_PATHS
+                    ):
                         continue
                     try:
                         resolved = Path(token).expanduser().resolve()
