@@ -111,8 +111,8 @@ class TelegramBot:
         self._app = (
             Application.builder()
             .token(self._config.telegram_token)
-            .read_timeout(60)
-            .write_timeout(60)
+            .read_timeout(120)
+            .write_timeout(120)
             .connect_timeout(30)
             .pool_timeout(30)
             .build()
