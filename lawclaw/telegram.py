@@ -113,20 +113,15 @@ class TelegramBot:
         if proxy:
             logger.info("Telegram using proxy: {}", proxy)
 
-        builder = (
-            Application.builder()
-            .token(self._config.telegram_token)
-            .read_timeout(120)
-            .write_timeout(120)
-            .connect_timeout(30)
-            .pool_timeout(30)
-        )
+        builder = Application.builder().token(self._config.telegram_token)
         if proxy:
             builder = builder.request(
                 HTTPXRequest(proxy=proxy, read_timeout=120, write_timeout=120, connect_timeout=30, pool_timeout=30)
             ).get_updates_request(
                 HTTPXRequest(proxy=proxy, read_timeout=120, connect_timeout=30, pool_timeout=30)
             )
+        else:
+            builder = builder.read_timeout(120).write_timeout(120).connect_timeout(30).pool_timeout(30)
         self._app = builder.build()
 
         # Register commands
