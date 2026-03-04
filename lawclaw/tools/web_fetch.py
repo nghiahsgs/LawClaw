@@ -114,8 +114,10 @@ class WebFetchTool(Tool):
                 return f"Request failed: {exc}"
 
         content_type = resp.headers.get("content-type", "")
-        if "text/html" in content_type or "text/plain" in content_type or not content_type:
+        if "text/html" in content_type:
             text = _extract_text(resp.text, url)
+        elif any(t in content_type for t in ("text/", "application/json", "application/xml", "application/ld+json")) or not content_type:
+            text = resp.text
         else:
             text = f"[Non-text content: {content_type}]"
 

@@ -132,16 +132,19 @@ class TelegramBot:
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_message))
         self._app.add_handler(MessageHandler(filters.PHOTO, self._on_photo))
 
-        # Set bot commands menu
-        await self._app.bot.set_my_commands([
-            BotCommand("new", "Start new session"),
-            BotCommand("audit", "View recent audit log"),
-            BotCommand("skills", "List skill statuses"),
-            BotCommand("approve", "Approve a pending skill"),
-            BotCommand("ban", "Ban a skill"),
-            BotCommand("jobs", "List cron jobs"),
-            BotCommand("help", "Show commands"),
-        ])
+        # Set bot commands menu (non-critical — don't let it crash startup)
+        try:
+            await self._app.bot.set_my_commands([
+                BotCommand("new", "Start new session"),
+                BotCommand("audit", "View recent audit log"),
+                BotCommand("skills", "List skill statuses"),
+                BotCommand("approve", "Approve a pending skill"),
+                BotCommand("ban", "Ban a skill"),
+                BotCommand("jobs", "List cron jobs"),
+                BotCommand("help", "Show commands"),
+            ])
+        except Exception as exc:
+            logger.warning("Failed to set bot commands (non-critical): {}", exc)
 
         logger.info("Telegram bot starting...")
         await self._app.initialize()
@@ -154,9 +157,13 @@ class TelegramBot:
 
     async def stop(self) -> None:
         if self._app:
-            await self._app.updater.stop()
-            await self._app.stop()
-            await self._app.shutdown()
+            try:
+                if self._app.updater and self._app.updater.running:
+                    await self._app.updater.stop()
+                await self._app.stop()
+                await self._app.shutdown()
+            except Exception as exc:
+                logger.warning("Error during bot shutdown: {}", exc)
 
     # -- Command handlers --
 

@@ -27,6 +27,7 @@ from lawclaw.tools.web_fetch import WebFetchTool
 from lawclaw.tools.blender import BlenderTool
 from lawclaw.tools.chrome_cdp import ChromeCdpTool
 from lawclaw.tools.file_ops import EditFileTool, ReadFileTool, WriteFileTool
+from lawclaw.tools.binance_chart import BinanceChartTool
 from lawclaw.tools.send_file import SendFileTool
 from lawclaw.tools.web_search import WebSearchTool
 
@@ -52,6 +53,7 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(WriteFileTool(workspace=workspace))
     tools.register(EditFileTool(workspace=workspace))
     tools.register(SendFileTool(workspace=workspace))
+    tools.register(BinanceChartTool(workspace=workspace))
     return tools
 
 
