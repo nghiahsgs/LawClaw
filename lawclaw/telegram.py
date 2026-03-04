@@ -66,6 +66,7 @@ def _render_table(table_lines: list[str]) -> str:
     return "```\n" + "\n".join(formatted) + "\n```"
 from telegram import BotCommand, Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.request import HTTPXRequest
 
 from lawclaw.config import Config
 from lawclaw.core.agent import Agent
@@ -108,15 +109,25 @@ class TelegramBot:
             logger.error("Telegram token not configured")
             return
 
-        self._app = (
+        proxy = self._config.telegram_proxy or None
+        if proxy:
+            logger.info("Telegram using proxy: {}", proxy)
+
+        builder = (
             Application.builder()
             .token(self._config.telegram_token)
             .read_timeout(120)
             .write_timeout(120)
             .connect_timeout(30)
             .pool_timeout(30)
-            .build()
         )
+        if proxy:
+            builder = builder.request(
+                HTTPXRequest(proxy=proxy, read_timeout=120, write_timeout=120, connect_timeout=30, pool_timeout=30)
+            ).get_updates_request(
+                HTTPXRequest(proxy=proxy, read_timeout=120, connect_timeout=30, pool_timeout=30)
+            )
+        self._app = builder.build()
 
         # Register commands
         self._app.add_handler(CommandHandler("start", self._on_start))

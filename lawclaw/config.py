@@ -49,6 +49,7 @@ class Config:
 
     # Telegram
     telegram_allow_from: list[str] = field(default_factory=list)
+    telegram_proxy: str = ""  # e.g. socks5://127.0.0.1:1080 or http://127.0.0.1:8080
 
     # Agent
     max_iterations: int = 15
@@ -83,6 +84,7 @@ def load_config() -> Config:
         max_tokens=int(os.environ.get("MAX_TOKENS", "4096")),
         # Telegram
         telegram_allow_from=allow_from,
+        telegram_proxy=os.environ.get("TELEGRAM_PROXY", ""),
         # Agent
         max_iterations=int(os.environ.get("MAX_ITERATIONS", "15")),
         memory_window=int(os.environ.get("MEMORY_WINDOW", "40")),
