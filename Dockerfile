@@ -21,7 +21,7 @@ RUN mkdir -p /data/workspace
 
 ENV DB_PATH=/data/lawclaw.db
 ENV WORKSPACE=/data/workspace
-ENV MODEL=claude-opus-4-local
-ENV LLM_PROXY_URL=http://claude-proxy:3456/v1/chat/completions
+ENV LLM_PROVIDER=openrouter
+ENV MODEL=google/gemini-2.5-flash
 
 CMD ["lawclaw", "gateway"]
