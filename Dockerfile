@@ -22,6 +22,6 @@ RUN mkdir -p /data/workspace
 ENV DB_PATH=/data/lawclaw.db
 ENV WORKSPACE=/data/workspace
 ENV LLM_PROVIDER=openrouter
-ENV MODEL=google/gemini-2.5-flash
+ENV MODEL=google/gemini-2.5-pro
 
 CMD ["lawclaw", "gateway"]
