@@ -1,0 +1,42 @@
+# Secrets — never copy into image
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+.venv
+venv
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs / plans (not needed at runtime)
+docs
+plans
+CLAUDE.md
+*.md
+!README.md
+!constitution.md
+!judicial.md
+
+# OS
+.DS_Store
+Thumbs.db

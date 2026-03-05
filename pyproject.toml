@@ -14,7 +14,7 @@ dependencies = [
     "python-telegram-bot>=21.0",
     "loguru>=0.7",
     "websockets>=12.0",
-    "mplfinance>=0.12",
+    "mplfinance>=0.12.10b0",
     "pandas>=2.0",
     "matplotlib>=3.8",
 ]

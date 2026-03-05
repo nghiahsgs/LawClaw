@@ -16,9 +16,14 @@ COPY lawclaw/ ./lawclaw/
 # Install lawclaw
 RUN pip install --no-cache-dir -e .
 
-# Runtime data dirs (overridden by volume mount)
-RUN mkdir -p /data/workspace
+# Non-root user for security
+RUN useradd --create-home --shell /bin/bash lawclaw \
+    && mkdir -p /data/workspace \
+    && chown -R lawclaw:lawclaw /data /app
 
+USER lawclaw
+
+# Non-sensitive defaults only — secrets via env_file at runtime
 ENV DB_PATH=/data/lawclaw.db
 ENV WORKSPACE=/data/workspace
 ENV LLM_PROVIDER=openrouter

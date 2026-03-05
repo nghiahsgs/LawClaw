@@ -1,0 +1,11 @@
+services:
+  lawclaw:
+    image: nghiahsgs/lawclaw:latest
+    build: .
+    env_file: .env
+    volumes:
+      - lawclaw-data:/data
+    restart: unless-stopped
+
+volumes:
+  lawclaw-data:
