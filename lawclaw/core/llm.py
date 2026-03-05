@@ -1,7 +1,8 @@
-"""LLM client for LawClaw — Claude Max proxy only.
+"""LLM client for LawClaw — supports Claude Max proxy and OpenRouter.
 
-All requests go to the local Claude Max proxy at localhost:3456.
-Requires: claude-max-api-proxy running locally + Claude Max subscription.
+Providers:
+  - claude-proxy: Local Claude Max proxy at localhost:3456 (requires subscription)
+  - openrouter: OpenRouter API (supports Gemini, Claude, etc.)
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from loguru import logger
 from lawclaw.config import Config
 
 CLAUDE_PROXY_URL = "http://127.0.0.1:3456/v1/chat/completions"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 @dataclass
@@ -35,12 +37,25 @@ class LLMResponse:
 class LLMClient:
     def __init__(self, config: Config) -> None:
         self._config = config
-        self._url = CLAUDE_PROXY_URL
-        self._headers = {"Content-Type": "application/json"}
-        # Strip '-local' suffix if present → "claude-opus-4-local" becomes "claude-opus-4"
-        self._model = config.model.removesuffix("-local").removesuffix("-LOCAL")
+        provider = config.llm_provider.lower()
 
-        logger.info("LLM model: {} | proxy: {}", self._model, self._url)
+        if provider == "openrouter":
+            if not config.openrouter_api_key:
+                raise ValueError("OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter")
+            self._url = OPENROUTER_URL
+            self._headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {config.openrouter_api_key}",
+            }
+            self._model = config.model  # e.g. "google/gemini-2.5-pro"
+        else:
+            # Default: claude-proxy
+            self._url = CLAUDE_PROXY_URL
+            self._headers = {"Content-Type": "application/json"}
+            # Strip '-local' suffix: "claude-opus-4-local" -> "claude-opus-4"
+            self._model = config.model.removesuffix("-local").removesuffix("-LOCAL")
+
+        logger.info("LLM provider: {} | model: {} | url: {}", provider, self._model, self._url)
 
     async def chat(
         self,

@@ -42,8 +42,10 @@ class Config:
     telegram_token: str = ""
     brave_api_key: str = ""
 
-    # LLM (Claude Max proxy only)
+    # LLM
+    llm_provider: str = "claude-proxy"  # "claude-proxy" | "openrouter"
     model: str = "claude-opus-4-local"
+    openrouter_api_key: str = ""
     temperature: float = 0.7
     max_tokens: int = 4096
 
@@ -78,8 +80,10 @@ def load_config() -> Config:
         # Secrets
         telegram_token=os.environ.get("TELEGRAM_TOKEN", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
-        # LLM (Claude Max proxy only)
+        # LLM
+        llm_provider=os.environ.get("LLM_PROVIDER", "claude-proxy"),
         model=os.environ.get("MODEL", "claude-opus-4-local"),
+        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
         temperature=float(os.environ.get("TEMPERATURE", "0.7")),
         max_tokens=int(os.environ.get("MAX_TOKENS", "4096")),
         # Telegram
