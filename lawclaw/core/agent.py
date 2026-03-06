@@ -152,6 +152,9 @@ class Agent:
             # Safety: detect leaked raw tool_calls JSON that proxy failed to parse
             final_content = self._strip_leaked_tool_json(final_content)
 
+            # Anti-hallucination: detect claims of actions without tool usage
+            final_content = self._check_hallucinated_actions(final_content, tools_used)
+
             # 4. Persist user + assistant messages
             add_message(self._conn, session_key, "user", message)
             add_message(
@@ -178,6 +181,45 @@ class Agent:
         add_message(self._conn, session_key, "user", message)
         add_message(self._conn, session_key, "assistant", final, tools_used=tools_used or None)
         return final
+
+    @staticmethod
+    def _check_hallucinated_actions(text: str, tools_used: list[str]) -> str:
+        """Detect when LLM claims it performed actions without calling any tools.
+
+        If the response contains action claims but no tools were used in this
+        turn, append a warning so the user is not misled.
+        """
+        import re
+
+        # If any tool was used this turn, trust the response
+        if tools_used:
+            return text
+
+        # Patterns that indicate the LLM claims it completed an action
+        # Vietnamese patterns
+        vn_patterns = [
+            r"(?:đã|tôi đã|mình đã|em đã)[\s\w]*(?:tạo|xóa|gửi|push|merge|commit|deploy|cài|clone|tải|upload|download|sửa|cập nhật|xong|hoàn thành)",
+            r"(?:thành công|successfully|done|xong rồi|hoàn tất)",
+        ]
+        # English patterns
+        en_patterns = [
+            r"(?:I(?:'ve| have)|I just|successfully|done|completed)[\s\w]*(?:created|deleted|sent|pushed|merged|committed|deployed|installed|cloned|uploaded|downloaded|fixed|updated|configured|set up|removed)",
+            r"(?:here(?:'s| is) the|the .+ has been) (?:created|done|completed|set up|configured|deployed)",
+        ]
+
+        text_lower = text.lower()
+        for pattern in vn_patterns + en_patterns:
+            if re.search(pattern, text_lower):
+                logger.warning("Detected possible hallucinated action claim without any tool usage")
+                warning = (
+                    "\n\n⚠️ **Cảnh báo / Warning**: Tôi vừa claim đã thực hiện hành động "
+                    "nhưng không hề gọi tool nào. Hãy yêu cầu tôi thực hiện lại bằng tool "
+                    "để xem kết quả thực tế. / I claimed to perform an action but did not "
+                    "call any tool. Please ask me to actually execute it."
+                )
+                return text + warning
+
+        return text
 
     @staticmethod
     def _strip_leaked_tool_json(text: str) -> str:
