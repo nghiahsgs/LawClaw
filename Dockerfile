@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     wget \
     openssh-client \
+    blender \
     && pip install --no-cache-dir yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
