@@ -22,8 +22,9 @@ RUN pip install --no-cache-dir -e .
 
 # Non-root user for security
 RUN useradd --create-home --shell /bin/bash lawclaw \
-    && mkdir -p /data/workspace \
-    && chown -R lawclaw:lawclaw /data /app
+    && mkdir -p /data/workspace /data/.ssh \
+    && ln -s /data/.ssh /home/lawclaw/.ssh \
+    && chown -R lawclaw:lawclaw /data /app /home/lawclaw/.ssh
 
 USER lawclaw
 
