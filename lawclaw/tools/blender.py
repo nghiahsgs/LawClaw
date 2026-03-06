@@ -304,14 +304,13 @@ class BlenderTool(Tool):
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
             )
             stdout, stderr = await asyncio.wait_for(
                 proc.communicate(), timeout=120.0,
             )
 
             output = stdout.decode("utf-8", errors="replace")
-            errors = stderr.decode("utf-8", errors="replace")
 
             # Extract lines from our script (skip Blender boot noise)
             result_lines = []
@@ -324,12 +323,7 @@ class BlenderTool(Tool):
             result = "\n".join(result_lines).strip()
 
             if proc.returncode != 0 and not result:
-                # Grab relevant error info
-                err_lines = [
-                    l for l in errors.splitlines()
-                    if "Error" in l or "Traceback" in l or "File" in l
-                ]
-                return f"Blender error (exit {proc.returncode}):\n" + "\n".join(err_lines[-10:])
+                return f"Blender error (exit {proc.returncode})"
 
             return result or "Done (no output)"
 
