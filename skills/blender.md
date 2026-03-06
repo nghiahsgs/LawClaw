@@ -20,7 +20,7 @@ Blender must be installed and available on PATH. The tool runs Blender in `--bac
 ```
 blender action="create_object" object_type="cube" name="MyCube" location=[0,0,0]
 blender action="set_material" object_name="MyCube" color=[1,0,0,1] material_name="Red"
-blender action="render" output_path="/tmp/scene.png" resolution=[1920,1080] engine="EEVEE"
+blender action="render" output_path="/tmp/scene.png" resolution=[1920,1080] engine="CYCLES"
 ```
 
 ### Work with an existing .blend file
@@ -64,8 +64,9 @@ blender action="run_script" script="import bpy\nbpy.ops.mesh.primitive_monkey_ad
 - All actions run in background mode — no Blender window opens
 - Use `blend_file` parameter to work on an existing file across multiple actions
 - The `run_script` action gives full access to Blender's Python API for anything the built-in actions don't cover
-- Render engines: EEVEE (fast), CYCLES (photorealistic, slow), WORKBENCH (viewport-style)
-- For CYCLES, use `samples` to control quality (64 = fast preview, 256+ = production)
+- Render engines: CYCLES (CPU, photorealistic), WORKBENCH (fast, viewport-style). EEVEE does NOT work (requires GPU).
+- For CYCLES, always set `use_denoising=False` and `device="CPU"`. Use `samples` to control quality (32 = fast, 128+ = production)
+- Default to WORKBENCH for quick previews, CYCLES for final renders
 - Exported files go to the specified path; use absolute paths
 - Blender workspace for temporary files: `~/.lawclaw/blender/`
 - `scene_info` gives a JSON overview of the current scene
