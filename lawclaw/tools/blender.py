@@ -252,7 +252,7 @@ class BlenderTool(Tool):
             img_fmt = fmt or "PNG"
             py = _build_render_script(out, res, eng, img_fmt, samples)
             result = await self._run_blender_script(py, blend_file)
-            if "Error" not in result:
+            if "[ERROR]" not in result and "Blender error" not in result:
                 return f"Rendered to: {out}\n{result}"
             return result
 
@@ -317,7 +317,7 @@ class BlenderTool(Tool):
             result_lines = []
             for line in output.splitlines():
                 # Skip Blender startup messages
-                if line.startswith(("Blender ", "Read ", "Fra:", "Info:")):
+                if line.startswith(("Blender ", "Read ", "Fra:", "Info:", "EGL ")):
                     continue
                 result_lines.append(line)
 
