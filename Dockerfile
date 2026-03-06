@@ -5,6 +5,10 @@ WORKDIR /app
 # Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    git \
+    ffmpeg \
+    wget \
+    && pip install --no-cache-dir yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy governance + source
