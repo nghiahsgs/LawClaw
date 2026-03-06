@@ -184,42 +184,34 @@ class Agent:
 
     @staticmethod
     def _check_hallucinated_actions(text: str, tools_used: list[str]) -> str:
-        """Detect when LLM claims it performed actions without calling any tools.
+        """Cross-check LLM's self-reported action tag against actual tool usage.
 
-        If the response contains action claims but no tools were used in this
-        turn, append a warning so the user is not misled.
+        The system prompt requires the LLM to end every response with
+        [ACTION: yes] or [ACTION: no]. If it says yes but no tools were
+        actually used → hallucination detected → append warning.
         """
         import re
 
-        # If any tool was used this turn, trust the response
-        if tools_used:
+        # Extract the [ACTION: ...] tag
+        match = re.search(r"\[ACTION:\s*(yes|no)\]\s*$", text, re.IGNORECASE)
+        if not match:
+            # No tag found — can't verify, return as-is
             return text
 
-        # Patterns that indicate the LLM claims it completed an action
-        # Vietnamese patterns
-        vn_patterns = [
-            r"(?:đã|tôi đã|mình đã|em đã)[\s\w]*(?:tạo|xóa|gửi|push|merge|commit|deploy|cài|clone|tải|upload|download|sửa|cập nhật|xong|hoàn thành)",
-            r"(?:thành công|successfully|done|xong rồi|hoàn tất)",
-        ]
-        # English patterns
-        en_patterns = [
-            r"(?:I(?:'ve| have)|I just|successfully|done|completed)[\s\w]*(?:created|deleted|sent|pushed|merged|committed|deployed|installed|cloned|uploaded|downloaded|fixed|updated|configured|set up|removed)",
-            r"(?:here(?:'s| is) the|the .+ has been) (?:created|done|completed|set up|configured|deployed)",
-        ]
+        claimed_action = match.group(1).lower() == "yes"
+        # Strip the tag from user-visible output
+        clean_text = text[:match.start()].rstrip()
 
-        text_lower = text.lower()
-        for pattern in vn_patterns + en_patterns:
-            if re.search(pattern, text_lower):
-                logger.warning("Detected possible hallucinated action claim without any tool usage")
-                warning = (
-                    "\n\n⚠️ **Cảnh báo / Warning**: Tôi vừa claim đã thực hiện hành động "
-                    "nhưng không hề gọi tool nào. Hãy yêu cầu tôi thực hiện lại bằng tool "
-                    "để xem kết quả thực tế. / I claimed to perform an action but did not "
-                    "call any tool. Please ask me to actually execute it."
-                )
-                return text + warning
+        if claimed_action and not tools_used:
+            logger.warning("Hallucination detected: LLM claimed ACTION:yes but no tools were used")
+            warning = (
+                "\n\n⚠️ **Cảnh báo**: Tôi vừa tuyên bố đã thực hiện hành động "
+                "nhưng thực tế không hề gọi tool nào. Đây có thể là ảo giác. "
+                "Hãy yêu cầu tôi thực hiện lại để xem kết quả thật."
+            )
+            return clean_text + warning
 
-        return text
+        return clean_text
 
     @staticmethod
     def _strip_leaked_tool_json(text: str) -> str:
@@ -317,7 +309,14 @@ class Agent:
             "If the user asks you to do something, call the appropriate tool right away. "
             "Do not ask 'are you sure?', 'can you confirm?', 'do you want me to proceed?', "
             "or say 'this needs approval'. There is NO approval mechanism — just execute. "
-            "This applies to ALL operations including git clone, file operations, and any exec_cmd."
+            "This applies to ALL operations including git clone, file operations, and any exec_cmd.\n\n"
+            "# Action Reporting (MANDATORY)\n\n"
+            "You MUST end EVERY final response with exactly one of these tags on a new line:\n"
+            "- `[ACTION: yes]` — if your response describes/claims you performed, completed, "
+            "or carried out any real-world action (created file, pushed code, sent message, etc.)\n"
+            "- `[ACTION: no]` — if your response is purely informational, a question, or a plan\n\n"
+            "This tag is stripped before showing to the user. It is used for integrity verification. "
+            "Be honest — the system cross-checks this against actual tool usage."
         )
 
         return "\n\n---\n\n".join(parts)
