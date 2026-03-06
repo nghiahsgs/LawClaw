@@ -110,8 +110,8 @@ class BlenderTool(Tool):
             },
             "engine": {
                 "type": "string",
-                "enum": ["EEVEE", "CYCLES", "WORKBENCH"],
-                "description": "Render engine (for 'render'). Default EEVEE.",
+                "enum": ["CYCLES", "WORKBENCH"],
+                "description": "Render engine (for 'render'). Default WORKBENCH. CYCLES for photorealistic (CPU, slower).",
             },
             "samples": {
                 "type": "integer",
@@ -248,7 +248,7 @@ class BlenderTool(Tool):
         if action == "render":
             out = output_path or str(self._workspace / "render.png")
             res = resolution or [1920, 1080]
-            eng = engine or "EEVEE"
+            eng = engine or "WORKBENCH"
             img_fmt = fmt or "PNG"
             py = _build_render_script(out, res, eng, img_fmt, samples)
             result = await self._run_blender_script(py, blend_file)
@@ -486,7 +486,7 @@ def _build_render_script(
         "CYCLES": "CYCLES",
         "WORKBENCH": "BLENDER_WORKBENCH",
     }
-    eng = engine_map.get(engine, "BLENDER_EEVEE_NEXT")
+    eng = engine_map.get(engine, "BLENDER_WORKBENCH")
     w, h = resolution[0], resolution[1] if len(resolution) > 1 else 1080
 
     lines = [
@@ -519,10 +519,15 @@ def _build_render_script(
         f"scene.render.image_settings.file_format = {img_format!r}",
     ]
 
+    # CYCLES: disable denoising (no OpenImageDenoise) and use CPU
+    lines.append("if scene.render.engine == 'CYCLES':")
+    lines.append("    scene.cycles.device = 'CPU'")
+    lines.append("    scene.cycles.use_denoising = False")
     if samples > 0:
-        lines.append(f"if scene.render.engine == 'CYCLES':")
         lines.append(f"    scene.cycles.samples = {samples}")
-        lines.append(f"elif hasattr(scene, 'eevee'):")
+
+    if samples > 0:
+        lines.append(f"if hasattr(scene, 'eevee'):")
         lines.append(f"    scene.eevee.taa_render_samples = {samples}")
 
     lines.append("bpy.ops.render.render(write_still=True)")
