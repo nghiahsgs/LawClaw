@@ -124,7 +124,9 @@ class WriteFileTool(Tool):
 
         try:
             resolved.parent.mkdir(parents=True, exist_ok=True)
-            resolved.write_text(content, encoding="utf-8")
+            # Add UTF-8 BOM for .csv files so Excel displays Unicode correctly
+            bom = "\ufeff" if resolved.suffix.lower() == ".csv" else ""
+            resolved.write_text(bom + content, encoding="utf-8")
         except OSError as exc:
             return f"Error writing file: {exc}"
 
