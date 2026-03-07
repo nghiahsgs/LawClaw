@@ -7,12 +7,17 @@ Providers:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
 from loguru import logger
+
+MAX_RETRIES = 3
+RETRY_DELAYS = [2, 5, 10]  # seconds between retries
+REQUEST_TIMEOUT = 300.0  # 5 min per attempt (was 30 min total)
 
 from lawclaw.config import Config
 
@@ -76,14 +81,45 @@ class LLMClient:
 
         logger.debug("LLM call: model={} messages={}", self._model, len(messages))
 
-        async with httpx.AsyncClient(timeout=1800.0) as client:
-            resp = await client.post(self._url, headers=self._headers, json=payload)
-            if resp.status_code != 200:
-                logger.error("LLM error {}: {}", resp.status_code, resp.text[:500])
-                resp.raise_for_status()
-            data = resp.json()
+        last_error: Exception | None = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                    resp = await client.post(self._url, headers=self._headers, json=payload)
+                    if resp.status_code >= 500 or resp.status_code == 429:
+                        # Server error or rate limit — retry
+                        logger.warning(
+                            "LLM attempt {}/{} got status {}, retrying in {}s",
+                            attempt + 1, MAX_RETRIES, resp.status_code, RETRY_DELAYS[attempt],
+                        )
+                        await asyncio.sleep(RETRY_DELAYS[attempt])
+                        continue
+                    if resp.status_code != 200:
+                        logger.error("LLM error {}: {}", resp.status_code, resp.text[:500])
+                        resp.raise_for_status()
+                    data = resp.json()
+                return self._parse_response(data)
+            except httpx.TimeoutException as exc:
+                last_error = exc
+                logger.warning(
+                    "LLM attempt {}/{} timed out after {}s, retrying in {}s",
+                    attempt + 1, MAX_RETRIES, REQUEST_TIMEOUT,
+                    RETRY_DELAYS[attempt] if attempt < len(RETRY_DELAYS) - 1 else "N/A",
+                )
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(RETRY_DELAYS[attempt])
+            except (httpx.ConnectError, httpx.ReadError) as exc:
+                last_error = exc
+                logger.warning(
+                    "LLM attempt {}/{} connection error: {}, retrying in {}s",
+                    attempt + 1, MAX_RETRIES, exc,
+                    RETRY_DELAYS[attempt] if attempt < len(RETRY_DELAYS) - 1 else "N/A",
+                )
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(RETRY_DELAYS[attempt])
 
-        return self._parse_response(data)
+        # All retries exhausted
+        raise RuntimeError(f"LLM call failed after {MAX_RETRIES} attempts: {last_error}")
 
     def _parse_response(self, data: dict[str, Any]) -> LLMResponse:
         choice = data["choices"][0]

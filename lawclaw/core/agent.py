@@ -80,7 +80,14 @@ class Agent:
         for iteration in range(self._config.max_iterations):
             logger.debug("Agent iteration {}/{}", iteration + 1, self._config.max_iterations)
 
-            response = await self._llm.chat(messages, tools=tool_defs if tool_defs else None)
+            try:
+                response = await self._llm.chat(messages, tools=tool_defs if tool_defs else None)
+            except Exception as exc:
+                logger.error("LLM call failed: {}", exc)
+                final = "Xin lỗi, tôi không thể kết nối được LLM lúc này. Vui lòng thử lại sau."
+                add_message(self._conn, session_key, "user", message)
+                add_message(self._conn, session_key, "assistant", final)
+                return final
 
             if response.tool_calls:
                 # Build assistant message with tool_calls for the conversation
