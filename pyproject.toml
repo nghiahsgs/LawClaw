@@ -17,6 +17,7 @@ dependencies = [
     "mplfinance>=0.12.10b0",
     "pandas>=2.0",
     "matplotlib>=3.8",
+    "agentmail>=0.2",
 ]
 
 [project.scripts]

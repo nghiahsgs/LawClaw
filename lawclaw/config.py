@@ -57,6 +57,9 @@ class Config:
     max_iterations: int = 15
     memory_window: int = 40
 
+    # AgentMail
+    agentmail_api_key: str = ""
+
     # Chrome CDP
     chrome_cdp_port: int = 9222
 
@@ -92,6 +95,8 @@ def load_config() -> Config:
         # Agent
         max_iterations=int(os.environ.get("MAX_ITERATIONS", "15")),
         memory_window=int(os.environ.get("MEMORY_WINDOW", "40")),
+        # AgentMail
+        agentmail_api_key=os.environ.get("AGENTMAIL_API_KEY", ""),
         # Chrome CDP
         chrome_cdp_port=int(os.environ.get("CHROME_CDP_PORT", "9222")),
         # Paths
