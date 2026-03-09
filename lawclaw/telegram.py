@@ -72,7 +72,7 @@ from lawclaw.config import Config
 from lawclaw.core.agent import Agent
 from lawclaw.core.judicial import JudicialBranch
 from lawclaw.core.legislative import LegislativeBranch
-from lawclaw.db import clear_session  # kept for potential /purge command
+from lawclaw.db import clear_session, get_max_session_version
 
 
 class TelegramBot:
@@ -95,7 +95,11 @@ class TelegramBot:
         self._session_versions: dict[int, int] = {}  # chat_id → version counter
 
     def _session_key(self, chat_id: int) -> str:
-        v = self._session_versions.get(chat_id, 0)
+        if chat_id not in self._session_versions:
+            # Restore from DB + bump so restart = fresh session
+            db_version = get_max_session_version(self._conn, chat_id)
+            self._session_versions[chat_id] = db_version + 1
+        v = self._session_versions[chat_id]
         return f"telegram:{chat_id}:v{v}"
 
     def _is_allowed(self, user_id: int) -> bool:
