@@ -75,6 +75,7 @@ class Agent:
 
         tool_defs = self._tools.get_definitions()
         tools_used: list[str] = []
+        tool_results: list[dict[str, str]] = []  # [{tool, result}, ...]
 
         # 3. Agent loop
         for iteration in range(self._config.max_iterations):
@@ -133,6 +134,7 @@ class Agent:
                                 memory_tool.set_namespace(f"user:{parts[1]}")
                         result_str = await self._tools.execute(tc.name, tc.arguments)
                         tools_used.append(tc.name)
+                        tool_results.append({"tool": tc.name, "result": result_str[:500]})
                         logger.debug("Tool '{}' executed, result length={}", tc.name, len(result_str))
 
                     self._judicial.log_action(session_key, tc.name, tc.arguments, result_str, verdict)
@@ -161,6 +163,9 @@ class Agent:
 
             # Anti-hallucination: detect claims of actions without tool usage
             final_content = self._check_hallucinated_actions(final_content, tools_used)
+
+            # Anti-hallucination v2: cross-check LLM claims against actual tool results
+            final_content = self._crosscheck_tool_results(final_content, tool_results)
 
             # 4. Persist user + assistant messages
             add_message(self._conn, session_key, "user", message)
@@ -219,6 +224,35 @@ class Agent:
             return clean_text + warning
 
         return clean_text
+
+    @staticmethod
+    def _crosscheck_tool_results(text: str, tool_results: list[dict[str, str]]) -> str:
+        """Append actual tool results summary so user can verify LLM claims.
+
+        If tools were called, add a collapsed summary of real results at the end.
+        This prevents the LLM from fabricating success when tools actually failed.
+        """
+        if not tool_results:
+            return text
+
+        # Check if any tool returned an error
+        error_keywords = ("error", "Error", "ERROR", "failed", "Failed", "not found", "blocked", "BLOCKED")
+        has_errors = any(
+            any(kw in tr["result"] for kw in error_keywords)
+            for tr in tool_results
+        )
+
+        if not has_errors:
+            return text
+
+        # There were errors but LLM may have hidden them — append real results
+        lines = ["\n\n---\n📋 **Tool call thực tế (cross-check):**"]
+        for tr in tool_results:
+            result_preview = tr["result"][:300]
+            lines.append(f"• `{tr['tool']}` → {result_preview}")
+
+        logger.warning("Cross-check: tool errors detected, appending real results to response")
+        return text + "\n".join(lines)
 
     @staticmethod
     def _strip_leaked_tool_json(text: str) -> str:

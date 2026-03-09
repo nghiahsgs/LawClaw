@@ -109,6 +109,16 @@ def clear_session(conn: sqlite3.Connection, session_key: str) -> None:
     conn.commit()
 
 
+def get_recent_audit(conn: sqlite3.Connection, session_key: str, limit: int = 20) -> list[dict]:
+    """Get recent audit entries for a session."""
+    rows = conn.execute(
+        "SELECT tool_name, arguments, result, verdict FROM audit_log "
+        "WHERE session_key = ? ORDER BY id DESC LIMIT ?",
+        (session_key, limit),
+    ).fetchall()
+    return [dict(r) for r in reversed(rows)]
+
+
 def log_audit(conn: sqlite3.Connection, session_key: str | None, tool_name: str,
               arguments: dict | None, result: str | None,
               verdict: str = "allowed", reason: str | None = None) -> None:
