@@ -36,6 +36,10 @@ class AgentMailTool(Tool):
                 ],
                 "description": "The action to perform.",
             },
+            "api_key": {
+                "type": "string",
+                "description": "AgentMail API key (am_us_...). Ask the user for it if not known, then save to memory for reuse.",
+            },
             "inbox_id": {
                 "type": "string",
                 "description": "Inbox ID (required for most actions except create/list inboxes).",
@@ -74,25 +78,23 @@ class AgentMailTool(Tool):
                 "description": "Display name for the inbox (for create_inbox).",
             },
         },
-        "required": ["action"],
+        "required": ["action", "api_key"],
     }
-
-    def __init__(self, api_key: str) -> None:
-        self._api_key = api_key
 
     async def execute(self, **kwargs: Any) -> str:  # type: ignore[override]
         action = kwargs.get("action", "")
+        api_key = kwargs.get("api_key", "")
         logger.debug("agentmail: action={}", action)
 
-        if not self._api_key:
-            return "Error: AGENTMAIL_API_KEY is not configured."
+        if not api_key:
+            return "Error: api_key is required. Ask the user for their AgentMail API key (from agentmail.to), then save it to memory for future use."
 
         try:
             from agentmail import AgentMail
         except ImportError:
             return "Error: agentmail package not installed. Run: pip install agentmail"
 
-        client = AgentMail(api_key=self._api_key)
+        client = AgentMail(api_key=api_key)
 
         try:
             if action == "create_inbox":

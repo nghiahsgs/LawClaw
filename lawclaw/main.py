@@ -56,16 +56,8 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(EditFileTool(workspace=workspace))
     tools.register(SendFileTool(workspace=workspace))
     tools.register(BinanceChartTool(workspace=workspace))
+    tools.register(AgentMailTool())
     return tools
-
-
-def _register_agentmail(tools: ToolRegistry, api_key: str) -> None:
-    """Register AgentMail tool if API key is configured."""
-    if api_key:
-        tools.register(AgentMailTool(api_key=api_key))
-        logger.info("AgentMail tool registered")
-    else:
-        logger.debug("AgentMail skipped — no AGENTMAIL_API_KEY")
 
 
 def _build_branches(conn: sqlite3.Connection, workspace: str) -> tuple[LegislativeBranch, JudicialBranch]:
@@ -101,8 +93,6 @@ def _build_agent(
     )
 
     main_tools = _make_base_tools(config.workspace, config.chrome_cdp_port)
-    _register_agentmail(main_tools, config.agentmail_api_key)
-    _register_agentmail(base_tools, config.agentmail_api_key)
     spawn_tool = SpawnSubagentTool()
     spawn_tool.set_manager(subagent_mgr)
     main_tools.register(spawn_tool)
