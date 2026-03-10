@@ -303,10 +303,77 @@ class TelegramBot:
     async def _on_jobs(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
-        # Inline import to avoid circular
-        from lawclaw.core.cron import CronService
+        import datetime
+        from lawclaw.db import get_cron_history
+
+        args = (update.message.text or "").split(maxsplit=1)
+
+        # /jobs <name> → show detail for a specific job
+        if len(args) >= 2:
+            search = args[1].strip()
+            row = self._conn.execute(
+                "SELECT id, name, message, schedule_type, schedule_value, enabled, last_status, last_error, last_run_at, created_at FROM cron_jobs WHERE name = ? OR id = ?",
+                (search, search),
+            ).fetchone()
+            if not row:
+                # Fuzzy match
+                row = self._conn.execute(
+                    "SELECT id, name, message, schedule_type, schedule_value, enabled, last_status, last_error, last_run_at, created_at FROM cron_jobs WHERE name LIKE ?",
+                    (f"%{search}%",),
+                ).fetchone()
+            if not row:
+                await update.message.reply_text(f"Job not found: {search}")
+                return
+
+            status = "🟢 Enabled" if row["enabled"] else "⚪ Disabled"
+            created = ""
+            if row["created_at"]:
+                dt = datetime.datetime.fromtimestamp(row["created_at"], tz=datetime.timezone.utc)
+                created = dt.strftime("%Y-%m-%d %H:%M UTC")
+            last_run = "Never"
+            if row["last_run_at"]:
+                dt = datetime.datetime.fromtimestamp(row["last_run_at"], tz=datetime.timezone.utc)
+                last_run = dt.strftime("%Y-%m-%d %H:%M UTC")
+
+            # Full prompt (no truncation)
+            prompt = row["message"].replace("`", "\\`")
+
+            lines = [
+                f"⏰ *Job Detail:* `{row['name']}`\n",
+                f"*Status:* {status}",
+                f"*Schedule:* {row['schedule_type']}: {row['schedule_value']}",
+                f"*Created:* {created}",
+                f"*Last run:* {last_run}",
+                f"*Last status:* {row['last_status'] or 'N/A'}",
+            ]
+            if row["last_error"]:
+                err = row["last_error"][:200].replace("`", "\\`")
+                lines.append(f"*Last error:* {err}")
+
+            lines.append(f"\n*Prompt:*\n```\n{prompt}\n```")
+
+            # Recent runs
+            runs = get_cron_history(self._conn, row["id"], limit=5)
+            if runs:
+                lines.append("\n*Recent runs:*")
+                for run in runs:
+                    run_time = run["run_at"] if run["run_at"] else "?"
+                    run_icon = "✅" if run["status"] == "ok" else "❌"
+                    summary = (run["summary"] or "")[:100].replace("`", "\\`")
+                    lines.append(f"{run_icon} {run_time} — {summary}...")
+
+            text = "\n".join(lines)
+            for i in range(0, len(text), 4000):
+                chunk = text[i:i + 4000]
+                try:
+                    await update.message.reply_text(chunk, parse_mode="Markdown")
+                except Exception:
+                    await update.message.reply_text(chunk)
+            return
+
+        # /jobs → list all jobs
         rows = self._conn.execute(
-            "SELECT id, name, schedule_type, schedule_value, enabled, last_status FROM cron_jobs"
+            "SELECT id, name, message, schedule_type, schedule_value, enabled, last_status, last_run_at FROM cron_jobs"
         ).fetchall()
         if not rows:
             await update.message.reply_text("No cron jobs.")
@@ -314,7 +381,19 @@ class TelegramBot:
         lines = ["⏰ *Cron Jobs:*\n"]
         for r in rows:
             status = "🟢" if r["enabled"] else "⚪"
-            lines.append(f"{status} `{r['name']}` ({r['schedule_type']}: {r['schedule_value']})")
+            last_run = ""
+            if r["last_run_at"]:
+                dt = datetime.datetime.fromtimestamp(r["last_run_at"], tz=datetime.timezone.utc)
+                last_run = f" | last: {dt.strftime('%m/%d %H:%M')}"
+            last_status = f" | {r['last_status']}" if r["last_status"] else ""
+            prompt = r["message"][:80] + "..." if len(r["message"]) > 80 else r["message"]
+            prompt = prompt.replace("_", "\\_").replace("*", "\\*").replace("`", "\\`").replace("[", "\\[")
+            lines.append(
+                f"{status} `{r['name']}`\n"
+                f"   ⏱ {r['schedule_type']}: {r['schedule_value']}{last_run}{last_status}\n"
+                f"   📝 {prompt}"
+            )
+        lines.append("\n_Tip: /jobs <name> — view full detail_")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
     async def _on_memory(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -345,6 +424,11 @@ class TelegramBot:
 
         # Preset model options grouped by provider
         presets = {
+            "claude-proxy": [
+                "claude-opus-4",
+                "claude-sonnet-4",
+                "claude-haiku-4",
+            ],
             "openrouter": [
                 "google/gemini-2.5-flash",
                 "google/gemini-2.5-pro",
@@ -377,7 +461,8 @@ class TelegramBot:
             idx = 1
             for provider, models in presets.items():
                 has_key = (
-                    (provider == "openrouter" and self._config.openrouter_api_key)
+                    provider == "claude-proxy"  # no key needed
+                    or (provider == "openrouter" and self._config.openrouter_api_key)
                     or (provider == "alibaba" and self._config.alibaba_api_key)
                 )
                 key_status = "✅" if has_key else "🔑 no key"

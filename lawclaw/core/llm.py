@@ -22,7 +22,7 @@ REQUEST_TIMEOUT = 300.0  # 5 min per attempt (was 30 min total)
 
 from lawclaw.config import Config
 
-CLAUDE_PROXY_URL = "http://127.0.0.1:3456/v1/chat/completions"
+CLAUDE_PROXY_URL = "http://172.104.167.95:3456/v1/chat/completions"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 ALIBABA_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 ALIBABA_CN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
