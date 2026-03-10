@@ -80,7 +80,7 @@ function createApp(): Express {
  * Start the HTTP server
  */
 export async function startServer(config: ServerConfig): Promise<Server> {
-  const { port, host = "127.0.0.1" } = config;
+  const { port, host = "0.0.0.0" } = config;
 
   if (serverInstance) {
     console.log("[Server] Already running, returning existing instance");
