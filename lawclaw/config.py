@@ -43,9 +43,10 @@ class Config:
     brave_api_key: str = ""
 
     # LLM
-    llm_provider: str = "claude-proxy"  # "claude-proxy" | "openrouter"
+    llm_provider: str = "claude-proxy"  # "claude-proxy" | "openrouter" | "alibaba"
     model: str = "claude-opus-4-local"
     openrouter_api_key: str = ""
+    alibaba_api_key: str = ""
     temperature: float = 0.7
     max_tokens: int = 4096
 
@@ -84,6 +85,7 @@ def load_config() -> Config:
         llm_provider=os.environ.get("LLM_PROVIDER", "claude-proxy"),
         model=os.environ.get("MODEL", "claude-opus-4-local"),
         openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+        alibaba_api_key=os.environ.get("ALIBABA_API_KEY", ""),
         temperature=float(os.environ.get("TEMPERATURE", "0.7")),
         max_tokens=int(os.environ.get("MAX_TOKENS", "4096")),
         # Telegram

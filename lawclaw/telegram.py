@@ -137,6 +137,7 @@ class TelegramBot:
         self._app.add_handler(CommandHandler("ban", self._on_ban))
         self._app.add_handler(CommandHandler("jobs", self._on_jobs))
         self._app.add_handler(CommandHandler("memory", self._on_memory))
+        self._app.add_handler(CommandHandler("models", self._on_models))
         self._app.add_handler(CommandHandler("help", self._on_help))
 
         # Message handlers
@@ -152,6 +153,7 @@ class TelegramBot:
                 BotCommand("approve", "Approve a pending skill"),
                 BotCommand("ban", "Ban a skill"),
                 BotCommand("jobs", "List cron jobs"),
+                BotCommand("models", "Switch LLM model"),
                 BotCommand("help", "Show commands"),
             ])
         except Exception as exc:
@@ -336,6 +338,97 @@ class TelegramBot:
             lines.append(f"• `{key}`\n  {val}")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
+    async def _on_models(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        args = (update.message.text or "").split()
+
+        # Preset model options grouped by provider
+        presets = {
+            "openrouter": [
+                "google/gemini-2.5-flash",
+                "google/gemini-2.5-pro",
+                "anthropic/claude-sonnet-4",
+                "anthropic/claude-haiku-4",
+                "deepseek/deepseek-chat-v3-0324",
+                "meta-llama/llama-4-maverick",
+            ],
+            "alibaba": [
+                "qwen3-max",
+                "qwen3.5-plus",
+                "qwen3.5-flash",
+                "qwen-plus",
+                "qwen-turbo",
+                "qwen-max",
+                "qwen3-coder-plus",
+            ],
+        }
+
+        llm = self._agent._llm
+
+        # /models → show current + options
+        if len(args) < 2:
+            lines = [
+                f"🤖 *Current model:*",
+                f"  Provider: `{llm.provider}`",
+                f"  Model: `{llm.model}`\n",
+                "*Available presets:*\n",
+            ]
+            idx = 1
+            for provider, models in presets.items():
+                has_key = (
+                    (provider == "openrouter" and self._config.openrouter_api_key)
+                    or (provider == "alibaba" and self._config.alibaba_api_key)
+                )
+                key_status = "✅" if has_key else "🔑 no key"
+                lines.append(f"*{provider}* ({key_status}):")
+                for m in models:
+                    marker = "→ " if m == llm.model and provider == llm.provider else "  "
+                    lines.append(f"{marker}`{idx}` {m}")
+                    idx += 1
+                lines.append("")
+            lines.append("_Usage: /models <number>_")
+            lines.append("_Or: /models <provider> <model>_")
+            await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+            return
+
+        # /models <number> → pick from preset list
+        if len(args) == 2 and args[1].isdigit():
+            num = int(args[1])
+            flat: list[tuple[str, str]] = []
+            for provider, models in presets.items():
+                for m in models:
+                    flat.append((provider, m))
+            if num < 1 or num > len(flat):
+                await update.message.reply_text(f"Invalid number. Choose 1-{len(flat)}.")
+                return
+            provider, model = flat[num - 1]
+            try:
+                llm.switch(provider, model)
+                await update.message.reply_text(
+                    f"✅ Switched to `{provider}` / `{model}`",
+                    parse_mode="Markdown",
+                )
+            except ValueError as e:
+                await update.message.reply_text(f"❌ {e}")
+            return
+
+        # /models <provider> <model> → custom
+        if len(args) >= 3:
+            provider = args[1]
+            model = args[2]
+            try:
+                llm.switch(provider, model)
+                await update.message.reply_text(
+                    f"✅ Switched to `{provider}` / `{model}`",
+                    parse_mode="Markdown",
+                )
+            except ValueError as e:
+                await update.message.reply_text(f"❌ {e}")
+            return
+
+        await update.message.reply_text("Usage: /models or /models <number> or /models <provider> <model>")
+
     async def _on_help(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
@@ -348,6 +441,7 @@ class TelegramBot:
             "/ban name — Ban a skill\n"
             "/jobs — List cron jobs\n"
             "/memory — View stored memory\n"
+            "/models — Switch LLM model\n"
             "/help — Show this message",
             parse_mode="Markdown",
         )
