@@ -136,6 +136,7 @@ class TelegramBot:
         self._app.add_handler(CommandHandler("approve", self._on_approve))
         self._app.add_handler(CommandHandler("ban", self._on_ban))
         self._app.add_handler(CommandHandler("jobs", self._on_jobs))
+        self._app.add_handler(CommandHandler("memory", self._on_memory))
         self._app.add_handler(CommandHandler("help", self._on_help))
 
         # Message handlers
@@ -312,6 +313,27 @@ class TelegramBot:
             lines.append(f"{status} `{r['name']}` ({r['schedule_type']}: {r['schedule_value']})")
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
+    async def _on_memory(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._check_access(update):
+            return
+        rows = self._conn.execute(
+            "SELECT key, value, updated_at FROM memory ORDER BY updated_at DESC LIMIT 20"
+        ).fetchall()
+        if not rows:
+            await update.message.reply_text("No memory entries.")
+            return
+        lines = ["🧠 *Memory:*\n"]
+        for r in rows:
+            key = r["key"]
+            val = r["value"]
+            # Mask sensitive values (API keys, tokens)
+            if any(kw in key.lower() for kw in ("key", "token", "secret", "password")):
+                val = val[:8] + "..." + val[-4:] if len(val) > 12 else "***"
+            elif len(val) > 100:
+                val = val[:100] + "..."
+            lines.append(f"• `{key}`\n  {val}")
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
     async def _on_help(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
@@ -323,6 +345,7 @@ class TelegramBot:
             "/approve name — Approve a skill\n"
             "/ban name — Ban a skill\n"
             "/jobs — List cron jobs\n"
+            "/memory — View stored memory\n"
             "/help — Show this message",
             parse_mode="Markdown",
         )
