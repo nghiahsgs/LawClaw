@@ -58,6 +58,18 @@ def init_db(conn: sqlite3.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_audit_session ON audit_log(session_key);
 
+        -- Cron run history
+        CREATE TABLE IF NOT EXISTS cron_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id TEXT NOT NULL,
+            job_name TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'ok',  -- 'ok', 'error'
+            summary TEXT,           -- short result summary
+            error TEXT,
+            created_at REAL NOT NULL DEFAULT (unixepoch('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_cron_runs_job ON cron_runs(job_id);
+
         -- Cron jobs
         CREATE TABLE IF NOT EXISTS cron_jobs (
             id TEXT PRIMARY KEY,
@@ -134,6 +146,26 @@ def get_recent_audit(conn: sqlite3.Connection, session_key: str, limit: int = 20
         "SELECT tool_name, arguments, result, verdict FROM audit_log "
         "WHERE session_key = ? ORDER BY id DESC LIMIT ?",
         (session_key, limit),
+    ).fetchall()
+    return [dict(r) for r in reversed(rows)]
+
+
+def log_cron_run(conn: sqlite3.Connection, job_id: str, job_name: str,
+                 status: str, summary: str | None = None, error: str | None = None) -> None:
+    """Log a cron job execution."""
+    conn.execute(
+        "INSERT INTO cron_runs (job_id, job_name, status, summary, error) VALUES (?, ?, ?, ?, ?)",
+        (job_id, job_name, status, summary[:1000] if summary else None, error),
+    )
+    conn.commit()
+
+
+def get_cron_history(conn: sqlite3.Connection, job_id: str, limit: int = 5) -> list[dict]:
+    """Get recent run history for a cron job."""
+    rows = conn.execute(
+        "SELECT status, summary, error, datetime(created_at, 'unixepoch') as run_at "
+        "FROM cron_runs WHERE job_id = ? ORDER BY id DESC LIMIT ?",
+        (job_id, limit),
     ).fetchall()
     return [dict(r) for r in reversed(rows)]
 

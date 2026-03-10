@@ -87,6 +87,12 @@ class CronService:
                 "UPDATE cron_jobs SET last_run_at = ?, last_status = 'error', last_error = ? WHERE id = ?",
                 (time.time(), str(e), job_id),
             )
+            # Log error to cron_runs history
+            try:
+                from lawclaw.db import log_cron_run
+                log_cron_run(self._conn, job_id, name, "error", error=str(e))
+            except Exception:
+                pass
         finally:
             self._executing.discard(job_id)
 

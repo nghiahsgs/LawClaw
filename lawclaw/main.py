@@ -136,7 +136,12 @@ async def run_gateway() -> None:
     # Cron callback: run agent + send result to Telegram
     async def on_cron_job(job_id: str, message: str, chat_id: str) -> str | None:
         import time
+        from lawclaw.db import log_cron_run, get_cron_history
         run_key = f"cron:{job_id}:{int(time.time())}"
+
+        # Get job name
+        job_row = conn.execute("SELECT name FROM cron_jobs WHERE id = ?", (job_id,)).fetchone()
+        job_name = job_row["name"] if job_row else job_id
 
         mem_tool = agent._tools.get("manage_memory")
         if mem_tool:
@@ -147,6 +152,17 @@ async def run_gateway() -> None:
         if job_memory:
             memory_section = f"\n\nYour persisted memory from previous runs:\n{job_memory}\n"
 
+        # Inject previous run history
+        history = get_cron_history(conn, job_id, limit=5)
+        history_section = ""
+        if history:
+            lines = ["\n\nPrevious run results:"]
+            for h in history:
+                status_icon = "OK" if h["status"] == "ok" else "ERROR"
+                summary = h.get("summary") or "(no summary)"
+                lines.append(f"  [{h['run_at']}] {status_icon}: {summary[:200]}")
+            history_section = "\n".join(lines) + "\n"
+
         cron_prompt = (
             "[SCHEDULED TASK] You are executing an automated cron job.\n"
             "Your text response will be sent directly to the user's chat — "
@@ -154,9 +170,16 @@ async def run_gateway() -> None:
             "Only use tools if the task genuinely requires external data (e.g. web_search for prices, "
             "web_fetch for APIs). For creative/text-only tasks, respond directly WITHOUT calling any tools.\n"
             "Use manage_memory to save any state you need for next run."
-            f"{memory_section}\n\nTask: {message}"
+            f"{memory_section}{history_section}\n\nTask: {message}"
         )
         response = await agent.process(message=cron_prompt, session_key=run_key)
+
+        # Log this run
+        try:
+            summary = response[:500] if response else None
+            log_cron_run(conn, job_id, job_name, "ok", summary=summary)
+        except Exception:
+            pass
         if chat_id and bot._app:
             cid = int(chat_id)
             # Send queued file attachments
