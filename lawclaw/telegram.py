@@ -192,11 +192,13 @@ class TelegramBot:
         if not self._check_access(update):
             return
         chat_id = update.effective_chat.id
-        old_v = self._session_versions.get(chat_id, 0)
+        # Clear old session messages so they never leak back
+        old_key = self._session_key(chat_id)
+        clear_session(self._conn, old_key)
+        # Bump version
+        old_v = self._session_versions[chat_id]
         self._session_versions[chat_id] = old_v + 1
-        await update.message.reply_text(
-            f"🔄 New session started (v{old_v + 1}). Old messages kept in DB."
-        )
+        await update.message.reply_text("🔄 New session started. Old messages cleared.")
 
     async def _on_audit(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):

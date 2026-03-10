@@ -105,17 +105,21 @@ def get_history(conn: sqlite3.Connection, session_key: str,
 
 def get_max_session_version(conn: sqlite3.Connection, chat_id: int) -> int:
     """Get the highest session version for a telegram chat_id from existing messages."""
-    row = conn.execute(
-        "SELECT session_key FROM messages WHERE session_key LIKE ? ORDER BY id DESC LIMIT 1",
+    rows = conn.execute(
+        "SELECT DISTINCT session_key FROM messages WHERE session_key LIKE ?",
         (f"telegram:{chat_id}:v%",),
-    ).fetchone()
-    if not row:
+    ).fetchall()
+    if not rows:
         return 0
-    # Extract version number from "telegram:123456:v7"
-    try:
-        return int(row["session_key"].rsplit(":v", 1)[1])
-    except (IndexError, ValueError):
-        return 0
+    max_v = 0
+    for row in rows:
+        try:
+            v = int(row["session_key"].rsplit(":v", 1)[1])
+            if v > max_v:
+                max_v = v
+        except (IndexError, ValueError):
+            continue
+    return max_v
 
 
 def clear_session(conn: sqlite3.Connection, session_key: str) -> None:
