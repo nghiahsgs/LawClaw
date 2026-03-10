@@ -14,9 +14,11 @@ class AgentMailTool(Tool):
     name = "agentmail"
     description = (
         "Manage email inboxes and send/receive emails. "
-        "Actions: create_inbox, list_inboxes, delete_inbox, "
+        "Actions: create_inbox, get_inbox, list_inboxes, delete_inbox, "
         "send_message, list_messages, get_message, reply, "
-        "list_threads, get_thread."
+        "list_threads, get_thread. "
+        "IMPORTANT: Always load api_key and inbox_id from memory first. "
+        "Do NOT use list_inboxes to check existence — use get_inbox instead."
     )
     parameters: dict[str, Any] = {
         "type": "object",
@@ -26,6 +28,7 @@ class AgentMailTool(Tool):
                 "enum": [
                     "create_inbox",
                     "list_inboxes",
+                    "get_inbox",
                     "delete_inbox",
                     "send_message",
                     "list_messages",
@@ -115,6 +118,13 @@ class AgentMailTool(Tool):
                 for ib in inboxes:
                     lines.append(f"  - {ib.inbox_id} (display: {getattr(ib, 'display_name', '')})")
                 return "\n".join(lines)
+
+            elif action == "get_inbox":
+                inbox_id = kwargs.get("inbox_id", "")
+                if not inbox_id:
+                    return "Error: inbox_id is required for get_inbox."
+                ib = client.inboxes.get(inbox_id)
+                return f"Inbox found:\n  Email/ID: {ib.inbox_id}\n  Display name: {getattr(ib, 'display_name', '')}"
 
             elif action == "delete_inbox":
                 inbox_id = kwargs.get("inbox_id", "")

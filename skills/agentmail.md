@@ -10,77 +10,77 @@ Manage email inboxes, send and receive emails autonomously.
 - Auto-reply to emails
 - Cron jobs for email monitoring
 
-## API Key
+## API Key & Inbox ID
 
 The user must provide their own AgentMail API key (from https://agentmail.to).
 
-**First time:** Ask the user for their key, then save it to memory:
+**First time:** Ask the user for their key AND inbox email, then save both to memory:
 ```
 manage_memory action="save" namespace="config" key="agentmail_api_key" value="<THE_KEY>"
+manage_memory action="save" namespace="config" key="agentmail_inbox_id" value="<EMAIL>@agentmail.to"
 ```
 
-**Later:** Load the key from memory before calling agentmail:
+**Later:** Load both from memory before calling agentmail:
 ```
 manage_memory action="load" namespace="config" key="agentmail_api_key"
+manage_memory action="load" namespace="config" key="agentmail_inbox_id"
 ```
 
-Then pass the key in every `agentmail` call via the `api_key` parameter.
+## IMPORTANT: Do NOT rely on list_inboxes
 
-## Quick Start
+The `list_inboxes` API has a known bug — it often returns empty even when inboxes exist.
+**Always use the inbox_id from memory directly.** Never conclude "no inboxes" based on list results.
 
-### Create an inbox
+If you need to verify an inbox exists, use `get_inbox` (not list).
 
-```
-agentmail action="create_inbox" api_key="<KEY>" display_name="My Agent"
-```
+## Sending an Email (most common task)
 
-### List inboxes
-
-```
-agentmail action="list_inboxes" api_key="<KEY>"
-```
-
-### Send an email
+Just load key + inbox_id from memory and send directly:
 
 ```
 agentmail action="send_message" api_key="<KEY>" inbox_id="<INBOX_ID>" to=["recipient@example.com"] subject="Hello" text="This is a test email."
 ```
 
-### Check messages
+Do NOT create a new inbox every time. Reuse the one saved in memory.
 
+## Other Actions
+
+### Get inbox info (verify it exists)
+```
+agentmail action="get_inbox" api_key="<KEY>" inbox_id="<INBOX_ID>"
+```
+
+### Create an inbox (only if user has none)
+```
+agentmail action="create_inbox" api_key="<KEY>" display_name="My Agent"
+```
+After creating, save the inbox_id to memory immediately.
+
+### Check messages
 ```
 agentmail action="list_messages" api_key="<KEY>" inbox_id="<INBOX_ID>"
 ```
 
 ### Read a specific message
-
 ```
 agentmail action="get_message" api_key="<KEY>" inbox_id="<INBOX_ID>" message_id="<MSG_ID>"
 ```
 
 ### Reply to a message
-
 ```
-agentmail action="reply" api_key="<KEY>" inbox_id="<INBOX_ID>" message_id="<MSG_ID>" text="Thanks for your email!"
+agentmail action="reply" api_key="<KEY>" inbox_id="<INBOX_ID>" message_id="<MSG_ID>" text="Thanks!"
 ```
 
-### List threads
-
+### List/get threads
 ```
 agentmail action="list_threads" api_key="<KEY>" inbox_id="<INBOX_ID>"
-```
-
-### Get full thread
-
-```
 agentmail action="get_thread" api_key="<KEY>" inbox_id="<INBOX_ID>" thread_id="<THREAD_ID>"
 ```
 
 ## Tips
 
-- Always load the API key from memory before calling agentmail
-- First create an inbox, then use its ID for all other actions
-- The inbox gets a random email address like `username@agentmail.to`
-- You can set `username` when creating to pick a custom prefix
-- Save the inbox_id to memory so you don't need to list_inboxes every time
-- For monitoring, set up a cron job to check new messages periodically
+- Always load API key AND inbox_id from memory before any agentmail call
+- Do NOT use list_inboxes to check if inbox exists — use get_inbox instead
+- Do NOT create new inboxes unless user explicitly asks — reuse the saved one
+- Free tier has a 2 inbox limit, so don't waste them
+- Save inbox_id to memory right after creating so it persists across sessions
