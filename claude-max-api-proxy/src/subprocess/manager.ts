@@ -53,9 +53,14 @@ export class ClaudeSubprocess extends EventEmitter {
     return new Promise((resolve, reject) => {
       try {
         // Use spawn() for security - no shell interpretation
+        // Clean env: remove CLAUDECODE vars to avoid "nested session" error
+        const cleanEnv = { ...process.env };
+        delete cleanEnv.CLAUDECODE;
+        delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
+
         this.process = spawn("claude", args, {
           cwd: options.cwd || process.cwd(),
-          env: { ...process.env },
+          env: cleanEnv,
           stdio: ["pipe", "pipe", "pipe"],
         });
 
@@ -138,7 +143,6 @@ export class ClaudeSubprocess extends EventEmitter {
       "stream-json", // JSON streaming output
       "--verbose", // Required for stream-json
       "--include-partial-messages", // Enable streaming chunks
-      "--dangerously-skip-permissions", // Skip CLI permission checks (LawClaw has its own Judicial layer)
       "--model",
       options.model, // Model alias (opus/sonnet/haiku)
       "--no-session-persistence", // Don't save sessions
