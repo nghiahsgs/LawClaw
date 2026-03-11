@@ -429,6 +429,12 @@ class TelegramBot:
                 "claude-sonnet-4",
                 "claude-haiku-4",
             ],
+            "chatgpt-proxy": [
+                "gpt-5.4",
+                "gpt-5.3-codex",
+                "gpt-5-codex",
+                "gpt-5",
+            ],
             "openrouter": [
                 "google/gemini-2.5-flash",
                 "google/gemini-2.5-pro",
@@ -461,7 +467,7 @@ class TelegramBot:
             idx = 1
             for provider, models in presets.items():
                 has_key = (
-                    provider == "claude-proxy"  # no key needed
+                    provider in ("claude-proxy", "chatgpt-proxy")  # no key needed
                     or (provider == "openrouter" and self._config.openrouter_api_key)
                     or (provider == "alibaba" and self._config.alibaba_api_key)
                 )

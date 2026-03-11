@@ -47,6 +47,9 @@ class Config:
     model: str = "claude-opus-4-local"
     openrouter_api_key: str = ""
     alibaba_api_key: str = ""
+    chatgpt_proxy_key: str = ""
+    claude_proxy_url: str = ""
+    chatgpt_proxy_url: str = ""
     temperature: float = 0.7
     max_tokens: int = 4096
 
@@ -86,6 +89,9 @@ def load_config() -> Config:
         model=os.environ.get("MODEL", "claude-opus-4-local"),
         openrouter_api_key=os.environ.get("OPENROUTER_API_KEY", ""),
         alibaba_api_key=os.environ.get("ALIBABA_API_KEY", ""),
+        chatgpt_proxy_key=os.environ.get("CHATGPT_PROXY_KEY", ""),
+        claude_proxy_url=os.environ.get("CLAUDE_PROXY_URL", ""),
+        chatgpt_proxy_url=os.environ.get("CHATGPT_PROXY_URL", ""),
         temperature=float(os.environ.get("TEMPERATURE", "0.7")),
         max_tokens=int(os.environ.get("MAX_TOKENS", "4096")),
         # Telegram

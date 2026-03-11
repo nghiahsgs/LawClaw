@@ -1,7 +1,8 @@
-"""LLM client for LawClaw — supports Claude Max proxy, OpenRouter, and Alibaba Cloud.
+"""LLM client for LawClaw — supports multiple LLM providers.
 
 Providers:
-  - claude-proxy: Local Claude Max proxy at localhost:3456 (requires subscription)
+  - claude-proxy: Claude Max proxy (requires subscription)
+  - chatgpt-proxy: ChatGPT proxy (GPT-5 models)
   - openrouter: OpenRouter API (supports Gemini, Claude, etc.)
   - alibaba: Alibaba Cloud DashScope API (Qwen models)
 """
@@ -22,7 +23,8 @@ REQUEST_TIMEOUT = 300.0  # 5 min per attempt (was 30 min total)
 
 from lawclaw.config import Config
 
-CLAUDE_PROXY_URL = "http://172.104.167.95:3456/v1/chat/completions"
+CLAUDE_PROXY_URL = ""   # set via CLAUDE_PROXY_URL env var
+CHATGPT_PROXY_URL = ""  # set via CHATGPT_PROXY_URL env var
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 ALIBABA_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 ALIBABA_CN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
@@ -65,9 +67,16 @@ class LLMClient:
                 "Authorization": f"Bearer {config.alibaba_api_key}",
             }
             self._model = config.model  # e.g. "qwen-plus", "qwen-turbo", "qwen-max"
+        elif provider == "chatgpt-proxy":
+            self._url = config.chatgpt_proxy_url
+            self._headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {config.chatgpt_proxy_key}",
+            }
+            self._model = config.model
         else:
             # Default: claude-proxy
-            self._url = CLAUDE_PROXY_URL
+            self._url = config.claude_proxy_url
             self._headers = {"Content-Type": "application/json"}
             # Strip '-local' suffix: "claude-opus-4-local" -> "claude-opus-4"
             self._model = config.model.removesuffix("-local").removesuffix("-LOCAL")
@@ -104,8 +113,14 @@ class LLMClient:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {key}",
             }
+        elif provider == "chatgpt-proxy":
+            self._url = self._config.chatgpt_proxy_url
+            self._headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._config.chatgpt_proxy_key}",
+            }
         elif provider == "claude-proxy":
-            self._url = CLAUDE_PROXY_URL
+            self._url = self._config.claude_proxy_url
             self._headers = {"Content-Type": "application/json"}
             model = model.removesuffix("-local").removesuffix("-LOCAL")
         else:
