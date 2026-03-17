@@ -51,15 +51,15 @@ class Config:
     claude_proxy_url: str = ""
     chatgpt_proxy_url: str = ""
     temperature: float = 0.7
-    max_tokens: int = 4096
+    max_tokens: int = 8192
 
     # Telegram
     telegram_allow_from: list[str] = field(default_factory=list)
     telegram_proxy: str = ""  # e.g. socks5://127.0.0.1:1080 or http://127.0.0.1:8080
 
     # Agent
-    max_iterations: int = 15
-    memory_window: int = 40
+    max_iterations: int = 25
+    memory_window: int = 80
 
     # Chrome CDP
     chrome_cdp_port: int = 9222

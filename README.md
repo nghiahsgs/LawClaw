@@ -315,6 +315,23 @@ pm2 restart all             # restart everything
 pm2 stop all                # stop everything
 ```
 
+## LSP (Code Intelligence)
+
+LawClaw uses Language Server Protocol to understand code — go-to-definition, find-references, type info — like an IDE.
+
+```bash
+# Python (required for .py files)
+npm install -g pyright
+
+# TypeScript / JavaScript (required for .ts/.js files)
+npm install -g typescript-language-server typescript
+
+# Go (required for .go files)
+go install golang.org/x/tools/gopls@latest
+```
+
+LSP is optional — if a language server isn't installed, the agent falls back to `grep_search`. Install only what you need.
+
 ## Tech Stack
 
 - **Python** 3.11+ (~2000 lines, no frameworks)

@@ -31,6 +31,8 @@ from lawclaw.tools.binance_chart import BinanceChartTool
 from lawclaw.tools.send_file import SendFileTool
 from lawclaw.tools.web_search import WebSearchTool
 from lawclaw.tools.agentmail import AgentMailTool
+from lawclaw.tools.codebase_search import GrepSearchTool, ListDirTool
+from lawclaw.tools.lsp import LspTool
 
 # Repo root: where governance markdown files live
 REPO_ROOT = Path(__file__).parent.parent
@@ -57,6 +59,9 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(SendFileTool(workspace=workspace))
     tools.register(BinanceChartTool(workspace=workspace))
     tools.register(AgentMailTool())
+    tools.register(ListDirTool(workspace=workspace))
+    tools.register(GrepSearchTool(workspace=workspace))
+    tools.register(LspTool(workspace=workspace))
     return tools
 
 
