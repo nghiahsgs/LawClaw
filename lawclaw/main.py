@@ -32,6 +32,7 @@ from lawclaw.tools.send_file import SendFileTool
 from lawclaw.tools.web_search import WebSearchTool
 from lawclaw.tools.agentmail import AgentMailTool
 from lawclaw.tools.codebase_search import GrepSearchTool, ListDirTool
+from lawclaw.tools.git_ops import GitTool
 from lawclaw.tools.lsp import LspTool
 
 # Repo root: where governance markdown files live
@@ -62,6 +63,7 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(ListDirTool(workspace=workspace))
     tools.register(GrepSearchTool(workspace=workspace))
     tools.register(LspTool(workspace=workspace))
+    tools.register(GitTool(workspace=workspace))
     return tools
 
 

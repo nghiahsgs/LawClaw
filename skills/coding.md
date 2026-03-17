@@ -31,4 +31,11 @@ You can write, edit, and debug code for the user. Follow this workflow:
 - `read_file` — read file contents (use offset/limit for large files)
 - `write_file` — create new files or full overwrite
 - `edit_file` — replace specific text in a file (preferred for modifications)
-- `exec_cmd` — run shell commands (install deps, run tests, build, git)
+- `exec_cmd` — run shell commands (install deps, run tests, build)
+- `git` — structured git operations:
+  - `status` — show branch, staged/unstaged/untracked files
+  - `diff` — show actual code changes
+  - `log` — recent commits
+  - `commit` — stage files + commit with message
+  - `branch` — list, create, or switch branches
+  - Prefer `git` tool over `exec_cmd("git ...")` for cleaner output
