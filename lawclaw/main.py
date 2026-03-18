@@ -25,7 +25,7 @@ from lawclaw.tools.manage_memory import ManageMemoryTool, load_memory_for_namesp
 from lawclaw.tools.spawn_subagent import SpawnSubagentTool
 from lawclaw.tools.web_fetch import WebFetchTool
 from lawclaw.tools.blender import BlenderTool
-from lawclaw.tools.chrome_cdp import ChromeCdpTool
+from lawclaw.tools.chrome_browser import ChromeBrowserTool
 from lawclaw.tools.file_ops import EditFileTool, ReadFileTool, WriteFileTool
 from lawclaw.tools.binance_chart import BinanceChartTool
 from lawclaw.tools.send_file import SendFileTool
@@ -51,8 +51,7 @@ def _make_base_tools(workspace: str, chrome_cdp_port: int = 9222) -> ToolRegistr
     tools.register(WebSearchTool())
     tools.register(WebFetchTool())
     tools.register(ExecCmdTool(workspace=workspace))
-    # ChromeCdpTool disabled — requires strong reasoning model (e.g. Claude Opus)
-    # tools.register(ChromeCdpTool(port=chrome_cdp_port, workspace=workspace))
+    tools.register(ChromeBrowserTool(workspace=workspace))
     tools.register(BlenderTool())
     tools.register(ReadFileTool(workspace=workspace))
     tools.register(WriteFileTool(workspace=workspace))

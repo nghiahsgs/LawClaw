@@ -1,0 +1,13 @@
+{
+  "name": "lawclaw-chrome-scripts",
+  "version": "1.0.0",
+  "description": "Browser automation scripts for LawClaw Chrome Profile Manager",
+  "type": "module",
+  "dependencies": {
+    "debug": "^4.4.0",
+    "puppeteer": "^24.15.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
