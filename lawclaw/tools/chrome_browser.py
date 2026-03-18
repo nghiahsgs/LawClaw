@@ -48,7 +48,7 @@ class ChromeBrowserTool(Tool):
             },
             "headless": {
                 "type": "boolean",
-                "description": "Run headless (default true). Set false for manual login.",
+                "description": "Run headless (default false). Set true for background automation.",
             },
             "url": {
                 "type": "string",
@@ -87,7 +87,7 @@ class ChromeBrowserTool(Tool):
         self,
         action: str,
         name: str = "",
-        headless: bool = True,
+        headless: bool = False,
         url: str = "",
         selector: str = "",
         value: str = "",
@@ -195,7 +195,9 @@ class ChromeBrowserTool(Tool):
             if not name:
                 return "[ERROR] 'name' is required for start_profile."
             args = ["--name", name]
-            if not headless:
+            if headless:
+                args.extend(["--headless", "true"])
+            else:
                 args.append("--no-headless")
             if url:
                 args.extend(["--url", url])

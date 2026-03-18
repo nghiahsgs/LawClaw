@@ -11,13 +11,13 @@ You can control a Chrome browser with persistent profiles using the `chrome` too
 ## Workflows
 
 ### First-time Login (e.g., Google account)
-1. `chrome(action="start_profile", name="google", headless=false)` — opens visible browser
+1. `chrome(action="start_profile", name="google")` — opens visible browser (default)
 2. Tell user: "Browser is open. Please log in to your Google account. Let me know when done."
 3. After user confirms: `chrome(action="screenshot")` — verify login state
 4. `chrome(action="stop_profile")` — saves session, profile preserved
 
-### Subsequent Use (headless)
-1. `chrome(action="start_profile", name="google")` — headless, already logged in
+### Subsequent Use (visible by default, less bot detection)
+1. `chrome(action="start_profile", name="google")` — visible, already logged in
 2. `chrome(action="navigate", url="https://play.google.com/console")` — navigate
 3. `chrome(action="screenshot")` — verify page
 4. Do work: navigate, click, fill, evaluate as needed
