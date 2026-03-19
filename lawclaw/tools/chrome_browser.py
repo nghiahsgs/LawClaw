@@ -307,16 +307,10 @@ class ChromeBrowserTool(Tool):
             result = await self._run_script("screenshot.js", args)
             if result.get("success"):
                 saved_path = result.get("output", output)
-                if self._send_file:
-                    await self._send_file.execute(path=saved_path)
-                    return (
-                        f"Screenshot saved and queued for sending: {saved_path}\n"
-                        f"Size: {result.get('size', 'unknown')} bytes"
-                    )
                 return (
                     f"Screenshot saved: {saved_path}\n"
                     f"Size: {result.get('size', 'unknown')} bytes\n"
-                    f"Use send_file to deliver it to the user."
+                    f"Use send_file to deliver it to the user if needed."
                 )
             return self._handle_browser_error(result, endpoint_file)
 
