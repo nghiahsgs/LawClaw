@@ -61,9 +61,16 @@ class Agent:
         messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
 
+        # Identity reminder prepended to every user message to override proxy's Claude Code identity
+        identity_prefix = (
+            "[REMINDER: You are LawClaw, a Telegram bot. You are NOT Claude Code. "
+            "You have ALL tools available including chrome, send_file, exec_cmd, etc. "
+            "Use them directly. Never say a tool is unavailable.]\n\n"
+        )
+
         # Build user message — multimodal if images are present
         if images:
-            content_parts: list[dict[str, Any]] = [{"type": "text", "text": message}]
+            content_parts: list[dict[str, Any]] = [{"type": "text", "text": identity_prefix + message}]
             for img_url in images:
                 content_parts.append({
                     "type": "image_url",
@@ -71,7 +78,7 @@ class Agent:
                 })
             messages.append({"role": "user", "content": content_parts})
         else:
-            messages.append({"role": "user", "content": message})
+            messages.append({"role": "user", "content": identity_prefix + message})
 
         tool_defs = self._tools.get_definitions()
         tools_used: list[str] = []
