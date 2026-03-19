@@ -14,8 +14,8 @@ async function navigate() {
     const page = await getPage(browser);
 
     await page.goto(args.url, {
-      waitUntil: args['wait-until'] || 'networkidle2',
-      timeout: parseInt(args.timeout || '30000')
+      waitUntil: args['wait-until'] || 'load',
+      timeout: parseInt(args.timeout || '90000')
     });
 
     outputJSON({
