@@ -30,6 +30,10 @@ class ManageMemoryTool(Tool):
                 "type": "string",
                 "description": "Value to store (required for 'set'). Use JSON for structured data.",
             },
+            "description": {
+                "type": "string",
+                "description": "Short description of what this key stores (recommended for 'set'). Helps future lookups.",
+            },
         },
         "required": ["action"],
     }
@@ -50,11 +54,12 @@ class ManageMemoryTool(Tool):
         action: str,
         key: str = "",
         value: str = "",
+        description: str = "",
     ) -> str:
         if action == "list":
             prefix = f"{self._namespace}:"
             rows = self._conn.execute(
-                "SELECT key, value FROM memory WHERE key LIKE ?",
+                "SELECT key, value, description FROM memory WHERE key LIKE ?",
                 (prefix + "%",),
             ).fetchall()
             if not rows:
@@ -62,7 +67,9 @@ class ManageMemoryTool(Tool):
             lines = []
             for r in rows:
                 short_key = r["key"][len(prefix):]  # strip namespace prefix
-                lines.append(f"- {short_key}: {r['value'][:200]}")
+                desc = r["description"] or ""
+                desc_part = f" ({desc})" if desc else ""
+                lines.append(f"- {short_key}{desc_part}: {r['value'][:200]}")
             return "\n".join(lines)
 
         elif action == "get":
@@ -79,11 +86,18 @@ class ManageMemoryTool(Tool):
         elif action == "set":
             if not key or not value:
                 return "[ERROR] 'key' and 'value' are required for 'set'."
-            self._conn.execute(
-                "INSERT INTO memory (key, value, updated_at) VALUES (?, ?, unixepoch('now')) "
-                "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-                (self._full_key(key), value),
-            )
+            if description:
+                self._conn.execute(
+                    "INSERT INTO memory (key, value, description, updated_at) VALUES (?, ?, ?, unixepoch('now')) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value, description = excluded.description, updated_at = excluded.updated_at",
+                    (self._full_key(key), value, description),
+                )
+            else:
+                self._conn.execute(
+                    "INSERT INTO memory (key, value, updated_at) VALUES (?, ?, unixepoch('now')) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                    (self._full_key(key), value),
+                )
             self._conn.commit()
             return f"Saved '{key}'."
 
@@ -106,7 +120,7 @@ def load_memory_for_namespace(conn: sqlite3.Connection, namespace: str) -> str:
     """Read all memory entries for a namespace. Returns formatted string for prompt injection."""
     prefix = f"{namespace}:"
     rows = conn.execute(
-        "SELECT key, value FROM memory WHERE key LIKE ?",
+        "SELECT key, value, description FROM memory WHERE key LIKE ?",
         (prefix + "%",),
     ).fetchall()
     if not rows:
@@ -114,5 +128,7 @@ def load_memory_for_namespace(conn: sqlite3.Connection, namespace: str) -> str:
     lines = []
     for r in rows:
         short_key = r["key"][len(prefix):]
-        lines.append(f"- {short_key}: {r['value']}")
+        desc = r["description"] or ""
+        desc_part = f" ({desc})" if desc else ""
+        lines.append(f"- {short_key}{desc_part}: {r['value']}")
     return "\n".join(lines)

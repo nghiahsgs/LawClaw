@@ -10,6 +10,10 @@ import httpx
 from loguru import logger
 
 from lawclaw.core.tools import Tool
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from lawclaw.tools.send_file import SendFileTool
 
 VALID_INTERVALS = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"}
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
@@ -47,6 +51,10 @@ class BinanceChartTool(Tool):
 
     def __init__(self, workspace: str) -> None:
         self._workspace = Path(workspace).resolve()
+        self._send_file: SendFileTool | None = None
+
+    def set_send_file(self, sf: SendFileTool) -> None:
+        self._send_file = sf
 
     async def execute(  # type: ignore[override]
         self,
@@ -129,4 +137,7 @@ class BinanceChartTool(Tool):
         out_path.write_bytes(buf.read())
 
         logger.info("binance_chart: saved {} ({} candles)", out_path.name, len(df))
+        if self._send_file:
+            await self._send_file.execute(path=str(out_path))
+            return f"Chart saved and queued for sending: {filename}  ({len(df)} candles, {interval})"
         return f"Chart saved: {filename}  ({len(df)} candles, {interval})"

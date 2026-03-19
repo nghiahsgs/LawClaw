@@ -1,7 +1,7 @@
 """Chrome browser automation tool with multi-profile support.
 
 Uses Puppeteer's bundled Chromium via Node.js scripts.
-Profiles stored at ~/.lawclaw/chrome/profiles/{name}/.
+Profiles stored at ~/.lawclaw/workspace/chrome/profiles/{name}/.
 """
 
 from __future__ import annotations
@@ -16,10 +16,11 @@ from typing import Any
 from loguru import logger
 
 from lawclaw.core.tools import Tool
+from lawclaw.tools.send_file import SendFileTool
 
 # Directory containing Node.js scripts (relative to this file)
 SCRIPTS_DIR = Path(__file__).parent.parent / "chrome" / "scripts"
-CHROME_DIR = Path.home() / ".lawclaw" / "chrome"
+CHROME_DIR = Path.home() / ".lawclaw" / "workspace" / "chrome"
 
 
 class ChromeBrowserTool(Tool):
@@ -82,6 +83,11 @@ class ChromeBrowserTool(Tool):
         self._workspace = Path(workspace) if workspace else None
         self._node_path = "node"
         self._deps_checked = False
+        self._send_file: SendFileTool | None = None
+
+    def set_send_file(self, sf: SendFileTool) -> None:
+        """Link send_file tool so screenshots auto-queue for delivery."""
+        self._send_file = sf
 
     async def execute(  # type: ignore[override]
         self,
@@ -185,6 +191,39 @@ class ChromeBrowserTool(Tool):
             return {"success": False, "error": err or out or f"Exit code {proc.returncode}"}
         return {"success": True, "message": out or "OK"}
 
+    async def _ensure_browser(self, name: str = "default", headless: bool = False) -> str | None:
+        """Ensure a browser profile is running. Auto-start if needed, auto-swap if different."""
+        # Check if any browser is running
+        endpoint_file = CHROME_DIR / ".browser-endpoint"
+        meta_file = CHROME_DIR / ".profile-meta"
+
+        if endpoint_file.exists():
+            try:
+                import json as _json
+                if meta_file.exists():
+                    meta = _json.loads(meta_file.read_text())
+                    if meta.get("profileName") == name:
+                        return None  # same profile, already running
+                # Different profile running — stop it first
+                await self._run_script("close-persistent.js", [])
+            except Exception:
+                # Stale endpoint, clean up
+                try:
+                    endpoint_file.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+        # Start the requested profile
+        args = ["--name", name]
+        if headless:
+            args.extend(["--headless", "true"])
+        else:
+            args.append("--no-headless")
+        result = await self._run_script("launch-profile.js", args, detach=True)
+        if result.get("success"):
+            return f"Auto-started profile '{name}'."
+        return f"[ERROR] Failed to start profile '{name}': {result.get('error', 'unknown')}"
+
     async def _dispatch(
         self, *, action: str, name: str, headless: bool, url: str,
         selector: str, value: str, script: str, output: str, full_page: bool,
@@ -194,15 +233,13 @@ class ChromeBrowserTool(Tool):
         if action == "start_profile":
             if not name:
                 return "[ERROR] 'name' is required for start_profile."
-            args = ["--name", name]
-            if headless:
-                args.extend(["--headless", "true"])
-            else:
-                args.append("--no-headless")
+            # Auto-stop different running profile before starting new one
+            startup_msg = await self._ensure_browser(name=name, headless=headless)
+            if startup_msg and startup_msg.startswith("[ERROR]"):
+                return startup_msg
             if url:
-                args.extend(["--url", url])
-            result = await self._run_script("launch-profile.js", args, detach=True)
-            return self._format(result)
+                await self._run_script("navigate.js", ["--url", url])
+            return startup_msg or f"Profile '{name}' already running."
 
         if action == "stop_profile":
             result = await self._run_script("close-persistent.js", [])
@@ -224,6 +261,15 @@ class ChromeBrowserTool(Tool):
 
         # -- browser interaction (requires running profile) --
 
+        # Check if a browser is running, hint LLM to list_profiles + start_profile first
+        endpoint_file = CHROME_DIR / ".browser-endpoint"
+        if not endpoint_file.exists():
+            return (
+                "[ERROR] No browser running. "
+                "Call chrome(action='list_profiles') first to see available profiles, "
+                "then chrome(action='start_profile', name='...') to start one."
+            )
+
         if action == "navigate":
             if not url:
                 return "[ERROR] 'url' is required for navigate."
@@ -244,8 +290,16 @@ class ChromeBrowserTool(Tool):
                 args.extend(["--full-page", "true"])
             result = await self._run_script("screenshot.js", args)
             if result.get("success"):
+                saved_path = result.get("output", output)
+                # Auto-queue for sending to user
+                if self._send_file:
+                    await self._send_file.execute(path=saved_path)
+                    return (
+                        f"Screenshot saved and queued for sending: {saved_path}\n"
+                        f"Size: {result.get('size', 'unknown')} bytes"
+                    )
                 return (
-                    f"Screenshot saved: {result.get('output', output)}\n"
+                    f"Screenshot saved: {saved_path}\n"
                     f"Size: {result.get('size', 'unknown')} bytes\n"
                     f"Use send_file to deliver it to the user."
                 )

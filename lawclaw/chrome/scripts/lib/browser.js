@@ -1,7 +1,7 @@
 /**
  * Shared browser utilities for LawClaw Chrome scripts.
- * State files (.browser-endpoint, .profile-meta) stored at ~/.lawclaw/chrome/
- * Profiles stored at ~/.lawclaw/chrome/profiles/{name}/
+ * State files (.browser-endpoint, .profile-meta) stored at ~/.lawclaw/workspace/chrome/
+ * Profiles stored at ~/.lawclaw/workspace/chrome/profiles/{name}/
  */
 import puppeteer from 'puppeteer';
 import debug from 'debug';
@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-const CHROME_DIR = path.join(os.homedir(), '.lawclaw', 'chrome');
+const CHROME_DIR = path.join(os.homedir(), '.lawclaw', 'workspace', 'chrome');
 const ENDPOINT_FILE = path.join(CHROME_DIR, '.browser-endpoint');
 
 const log = debug('lawclaw:chrome');

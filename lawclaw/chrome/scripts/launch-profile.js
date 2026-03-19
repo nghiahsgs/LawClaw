@@ -3,15 +3,15 @@
  * Launch Chromium with a persistent profile.
  * Uses Puppeteer's bundled Chromium — no Chrome restrictions, no Keychain issues.
  *
- * Profiles stored at: ~/.lawclaw/chrome/profiles/{name}/
- * State files at: ~/.lawclaw/chrome/
+ * Profiles stored at: ~/.lawclaw/workspace/chrome/profiles/{name}/
+ * State files at: ~/.lawclaw/workspace/chrome/
  */
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-const CHROME_DIR = path.join(os.homedir(), '.lawclaw', 'chrome');
+const CHROME_DIR = path.join(os.homedir(), '.lawclaw', 'workspace', 'chrome');
 const PROFILES_DIR = path.join(CHROME_DIR, 'profiles');
 const ENDPOINT_FILE = path.join(CHROME_DIR, '.browser-endpoint');
 const PROFILE_META_FILE = path.join(CHROME_DIR, '.profile-meta');

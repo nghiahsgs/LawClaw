@@ -42,6 +42,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             key TEXT UNIQUE NOT NULL,
             value TEXT NOT NULL,
+            description TEXT DEFAULT '',  -- what this key stores (helps LLM lookup)
             updated_at REAL NOT NULL DEFAULT (unixepoch('now'))
         );
 
@@ -90,6 +91,14 @@ def init_db(conn: sqlite3.Connection) -> None:
 
     """)
     conn.commit()
+
+    # Migrations — add columns that may not exist in older DBs
+    try:
+        conn.execute("ALTER TABLE memory ADD COLUMN description TEXT DEFAULT ''")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
+
     logger.debug("Database initialized")
 
 

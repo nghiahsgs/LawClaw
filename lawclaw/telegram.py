@@ -153,6 +153,7 @@ class TelegramBot:
                 BotCommand("approve", "Approve a pending skill"),
                 BotCommand("ban", "Ban a skill"),
                 BotCommand("jobs", "List cron jobs"),
+                BotCommand("memory", "View all stored memory"),
                 BotCommand("models", "Switch LLM model"),
                 BotCommand("help", "Show commands"),
             ])
@@ -399,23 +400,34 @@ class TelegramBot:
     async def _on_memory(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
             return
+        from html import escape as esc
         rows = self._conn.execute(
-            "SELECT key, value, updated_at FROM memory ORDER BY updated_at DESC LIMIT 20"
+            "SELECT key, value, description, updated_at FROM memory ORDER BY key"
         ).fetchall()
         if not rows:
             await update.message.reply_text("No memory entries.")
             return
-        lines = ["🧠 *Memory:*\n"]
+        lines = ["🧠 <b>Memory:</b>\n"]
         for r in rows:
             key = r["key"]
             val = r["value"]
+            desc = r["description"] or ""
             # Mask sensitive values (API keys, tokens)
             if any(kw in key.lower() for kw in ("key", "token", "secret", "password")):
                 val = val[:8] + "..." + val[-4:] if len(val) > 12 else "***"
-            elif len(val) > 100:
-                val = val[:100] + "..."
-            lines.append(f"• `{key}`\n  {val}")
-        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+            elif len(val) > 200:
+                val = val[:200] + "..."
+            desc_part = f"\n  📝 <i>{esc(desc)}</i>" if desc else ""
+            lines.append(f"• <code>{esc(key)}</code>{desc_part}\n  {esc(val)}")
+
+        text = "\n".join(lines)
+        # Telegram message limit is 4096 chars, split if needed
+        if len(text) <= 4096:
+            await update.message.reply_text(text, parse_mode="HTML")
+        else:
+            for i in range(0, len(text), 4096):
+                chunk = text[i:i + 4096]
+                await update.message.reply_text(chunk, parse_mode="HTML")
 
     async def _on_models(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._check_access(update):
