@@ -29,10 +29,15 @@ Example: user says "go to google.com" then "now go to gmail.com"
 ## Workflows
 
 ### First-time Login (e.g., Google account)
-1. `chrome(action="start_profile", name="google")` — opens visible browser
-2. Tell user: "Browser is open. Please log in to your Google account. Let me know when done."
-3. After user confirms: `chrome(action="screenshot")` — verify login state
-4. `chrome(action="stop_profile")` — saves session, profile preserved
+Chrome opens as a **visible GUI window** on the user's macOS desktop. The user can see it and type directly.
+1. `chrome(action="start_profile", name="google")` — opens visible browser on user's screen
+2. `chrome(action="navigate", url="https://accounts.google.com")` — go to login page
+3. Tell user: "Chrome is open on your screen. Please type your password in the browser window. Let me know when done."
+4. After user confirms: `chrome(action="screenshot")` — verify login state
+5. `chrome(action="stop_profile")` — saves session, profile preserved
+
+IMPORTANT: The browser is NOT headless. It runs with a GUI. The user CAN interact with it directly.
+Never say "this is a headless server" or "you need to open Chrome manually".
 
 ### Subsequent Use
 1. `chrome(action="start_profile", name="google")` — reuses if already running

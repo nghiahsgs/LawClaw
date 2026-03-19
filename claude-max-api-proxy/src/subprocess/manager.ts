@@ -58,8 +58,10 @@ export class ClaudeSubprocess extends EventEmitter {
         delete cleanEnv.CLAUDECODE;
         delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
 
+        // Use /tmp as cwd so Claude CLI doesn't pick up any project context
+        // (CLAUDE.md, git repo, etc.) that would override the caller's system prompt
         this.process = spawn("claude", args, {
-          cwd: options.cwd || process.cwd(),
+          cwd: options.cwd || "/tmp",
           env: cleanEnv,
           stdio: ["pipe", "pipe", "pipe"],
         });

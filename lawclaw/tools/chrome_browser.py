@@ -134,7 +134,7 @@ class ChromeBrowserTool(Tool):
             logger.info("Chrome scripts dependencies installed")
 
     async def _run_script(
-        self, script_name: str, args: list[str], timeout: float = 60.0,
+        self, script_name: str, args: list[str], timeout: float = 120.0,
         detach: bool = False,
     ) -> dict[str, Any]:
         """Run a Node.js script and return parsed JSON output."""

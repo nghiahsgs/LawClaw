@@ -107,9 +107,34 @@ async function main() {
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
+      // Anti-detection: hide automation signals from Google etc.
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-infobars',
     ],
     defaultViewport: headless ? { width: 1920, height: 1080 } : null,
+    ignoreDefaultArgs: ['--enable-automation'],  // Remove "Chrome is being controlled by automated software" bar
   });
+
+  // Override navigator.webdriver to false on every new page
+  browser.on('targetcreated', async (target) => {
+    try {
+      const page = await target.page();
+      if (page) {
+        await page.evaluateOnNewDocument(() => {
+          Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        });
+      }
+    } catch {}
+  });
+  // Also apply to existing pages
+  for (const page of await browser.pages()) {
+    try {
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      });
+    } catch {}
+  }
 
   const wsEndpoint = browser.wsEndpoint();
 
