@@ -89,6 +89,21 @@ class ChromeBrowserTool(Tool):
         """Link send_file tool so screenshots auto-queue for delivery."""
         self._send_file = sf
 
+    def _handle_browser_error(self, result: dict, endpoint_file: Path) -> str:
+        """Handle browser script errors. Cleanup stale sessions and return actionable error."""
+        error_msg = result.get("error", "")
+        if any(kw in error_msg.lower() for kw in ("timed out", "connect", "target closed", "session closed", "not found")):
+            for f in [endpoint_file, CHROME_DIR / ".profile-meta"]:
+                try:
+                    f.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            return (
+                "[ERROR] Browser connection lost. Cleaned up stale session. "
+                "Call chrome(action='start_profile', name='default') to restart, then retry."
+            )
+        return self._format(result)
+
     async def execute(  # type: ignore[override]
         self,
         action: str,
@@ -261,19 +276,20 @@ class ChromeBrowserTool(Tool):
 
         # -- browser interaction (requires running profile) --
 
-        # Check if a browser is running, hint LLM to list_profiles + start_profile first
+        # Check if a browser is running
         endpoint_file = CHROME_DIR / ".browser-endpoint"
         if not endpoint_file.exists():
             return (
                 "[ERROR] No browser running. "
-                "Call chrome(action='list_profiles') first to see available profiles, "
-                "then chrome(action='start_profile', name='...') to start one."
+                "Call chrome(action='start_profile', name='default') to start one."
             )
 
         if action == "navigate":
             if not url:
                 return "[ERROR] 'url' is required for navigate."
             result = await self._run_script("navigate.js", ["--url", url])
+            if not result.get("success"):
+                return self._handle_browser_error(result, endpoint_file)
             return self._format(result)
 
         if action == "screenshot":
@@ -291,7 +307,6 @@ class ChromeBrowserTool(Tool):
             result = await self._run_script("screenshot.js", args)
             if result.get("success"):
                 saved_path = result.get("output", output)
-                # Auto-queue for sending to user
                 if self._send_file:
                     await self._send_file.execute(path=saved_path)
                     return (
@@ -303,7 +318,7 @@ class ChromeBrowserTool(Tool):
                     f"Size: {result.get('size', 'unknown')} bytes\n"
                     f"Use send_file to deliver it to the user."
                 )
-            return self._format(result)
+            return self._handle_browser_error(result, endpoint_file)
 
         if action == "click":
             if not selector:
@@ -312,6 +327,8 @@ class ChromeBrowserTool(Tool):
             if url:
                 args.extend(["--url", url])
             result = await self._run_script("click.js", args)
+            if not result.get("success"):
+                return self._handle_browser_error(result, endpoint_file)
             return self._format(result)
 
         if action == "fill":
@@ -322,12 +339,16 @@ class ChromeBrowserTool(Tool):
             result = await self._run_script("fill.js", [
                 "--selector", selector, "--value", value,
             ])
+            if not result.get("success"):
+                return self._handle_browser_error(result, endpoint_file)
             return self._format(result)
 
         if action == "evaluate":
             if not script:
                 return "[ERROR] 'script' is required for evaluate."
             result = await self._run_script("evaluate.js", ["--script", script])
+            if not result.get("success"):
+                return self._handle_browser_error(result, endpoint_file)
             return self._format(result)
 
         if action == "page_info":
@@ -337,7 +358,7 @@ class ChromeBrowserTool(Tool):
             if result.get("success"):
                 info = result.get("result", {})
                 return f"URL: {info.get('url', 'unknown')}\nTitle: {info.get('title', 'unknown')}"
-            return self._format(result)
+            return self._handle_browser_error(result, endpoint_file)
 
         return f"Unknown action: {action}"
 

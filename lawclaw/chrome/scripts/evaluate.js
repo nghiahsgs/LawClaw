@@ -18,7 +18,15 @@ async function evaluate() {
     }
 
     const result = await page.evaluate((script) => {
-      return eval(script);
+      try {
+        return eval(script);
+      } catch (e) {
+        if (e instanceof SyntaxError && e.message.includes('return')) {
+          // Wrap in function to allow return statements
+          return new Function(script)();
+        }
+        throw e;
+      }
     }, args.script);
 
     outputJSON({
